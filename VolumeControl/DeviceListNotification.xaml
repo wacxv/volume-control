@@ -1,0 +1,357 @@
+﻿<Window
+    x:Class="VolumeControl.DeviceListNotification"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:behaviour="clr-namespace:XamlTimers;assembly=XamlTimers"
+    xmlns:conv="clr-namespace:VolumeControl.WPF.Converters;assembly=VolumeControl.WPF"
+    xmlns:core="clr-namespace:VolumeControl.Core;assembly=VolumeControl.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:VolumeControl.ViewModels"
+    xmlns:wpf="clr-namespace:VolumeControl.WPF;assembly=VolumeControl.WPF"
+    xmlns:wpfBehaviors="clr-namespace:VolumeControl.WPF.Behaviors;assembly=VolumeControl.WPF"
+    x:Name="Window"
+    Title="DeviceListNotification"
+    AllowsTransparency="True"
+    Background="Transparent"
+    Closing="Window_Closing"
+    DataContext="{Binding RelativeSource={RelativeSource Self}}"
+    FontFamily="{StaticResource InterFont}"
+    Loaded="Window_Loaded"
+    MouseDown="Window_MouseDown"
+    MouseEnter="Window_MouseEnter"
+    MouseLeave="Window_MouseLeave"
+    ResizeMode="NoResize"
+    ShowActivated="False"
+    ShowInTaskbar="False"
+    SizeToContent="WidthAndHeight"
+    SnapsToDevicePixels="True"
+    Topmost="True"
+    WindowStartupLocation="Manual"
+    WindowStyle="None"
+    mc:Ignorable="d">
+    <Window.Resources>
+        <ResourceDictionary>
+            <!--  Converters  -->
+            <conv:ConverterChain x:Key="NullableToVisibilityConverter">
+                <conv:NullToBooleanConverter />
+                <conv:BooleanInverter />
+                <BooleanToVisibilityConverter />
+            </conv:ConverterChain>
+            <conv:BooleanInverter x:Key="InvertConverter" />
+
+            <!--  Styles  -->
+            <Style BasedOn="{StaticResource TextBoxStyle}" TargetType="{x:Type TextBox}">
+                <Setter Property="Background" Value="#0000" />
+                <Setter Property="BorderThickness" Value="0" />
+            </Style>
+
+            <!--  Animation Storyboards  -->
+            <Storyboard x:Key="FadeInStoryboard" Completed="FadeInStoryboard_Completed">
+                <DoubleAnimation
+                    FillBehavior="HoldEnd"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0.0"
+                    To="1.0"
+                    Duration="{Binding DeviceConfigVM.ConfigSection.FadeInDuration, Source={StaticResource Settings}}" />
+            </Storyboard>
+            <Storyboard x:Key="FadeOutStoryboard" Completed="FadeOutStoryboard_Completed">
+                <DoubleAnimation
+                    FillBehavior="Stop"
+                    Storyboard.TargetProperty="Opacity"
+                    From="1.0"
+                    To="0.0"
+                    Duration="{Binding DeviceConfigVM.ConfigSection.FadeOutDuration, Source={StaticResource Settings}}" />
+            </Storyboard>
+
+            <!--  DataTemplates  -->
+            <DataTemplate x:Key="DeviceControlsDataTemplate" DataType="{x:Type vm:AudioDeviceVM}">
+                <!--  ControlBar template  -->
+                <Grid Margin="2,4,2,2" DataContext="{Binding AudioDevice}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition MinWidth="80" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox
+                        Grid.Column="0"
+                        Margin="0,0,3,0"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding Mute, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider
+                        Grid.Column="1"
+                        Margin="2,0"
+                        VerticalAlignment="Center"
+                        LargeChange="5"
+                        Maximum="100"
+                        Minimum="0"
+                        SmallChange="1"
+                        Tag="{Binding PeakMeterValue, Mode=OneWay}"
+                        Value="{Binding Volume, UpdateSourceTrigger=PropertyChanged}">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:MouseWheelRangeBaseBehavior Amount="{Binding VolumeStepSize, Source={StaticResource Settings}}" />
+                            <behaviour:IntervalUpdateBinding
+                                EnableTimer="{Binding ShowPeakMeters, Source={StaticResource Settings}}"
+                                Interval="{Binding PeakMeterUpdateIntervalMs, Source={StaticResource Settings}}"
+                                ThrowWhenPropertyIsMissing="False"
+                                Property="{x:Static FrameworkElement.TagProperty}" />
+                        </i:Interaction.Behaviors>
+                    </Slider>
+                    <TextBox
+                        Grid.Column="2"
+                        MinWidth="34"
+                        Margin="3,0,0,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Foreground="{Binding DeviceConfigVM.ForegroundBrush, Source={StaticResource Settings}}"
+                        Text="{Binding Volume, UpdateSourceTrigger=LostFocus}"
+                        TextAlignment="Right">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:EscapeRemovesFocusBehavior />
+                        </i:Interaction.Behaviors>
+                    </TextBox>
+                </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="DeviceDisplayDataTemplate" DataType="{x:Type vm:AudioDeviceVM}">
+                <!--  Display template without auto-sizing  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="{Binding Height, RelativeSource={RelativeSource Self}, Mode=OneWay}"
+                        Height="{Binding ActualHeight, ElementName=deviceNameBox}"
+                        Margin="0,0,3,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Source="{Binding Icon}"
+                        Visibility="{Binding ShowIcons, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock
+                        x:Name="deviceNameBox"
+                        Grid.Column="1"
+                        Margin="3,0,0,0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Foreground="{Binding DeviceConfigVM.ForegroundBrush, Source={StaticResource Settings}}"
+                        Text="{Binding Name}">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AudioDevice.DataFlow}" Value="Capture">
+                                        <Setter Property="FontStyle" Value="Oblique" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="DeviceDisplayAlwaysBoldWidthDataTemplate" DataType="{x:Type vm:AudioDeviceVM}">
+                <!--  Display template that always keeps enough width to display bold text without resizing  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="{Binding Height, RelativeSource={RelativeSource Self}, Mode=OneWay}"
+                        Height="{Binding ActualHeight, ElementName=deviceNameBox}"
+                        Margin="0,0,3,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Source="{Binding Icon}"
+                        Visibility="{Binding ShowIcons, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock
+                        x:Name="deviceNameBox"
+                        Grid.Column="1"
+                        Margin="3,0,0,0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Foreground="{Binding DeviceConfigVM.ForegroundBrush, Source={StaticResource Settings}}"
+                        Text="{Binding Name}">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AudioDevice.DataFlow}" Value="Capture">
+                                        <Setter Property="FontStyle" Value="Oblique" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <!--  Always Bold TextBlock (Keeps correct width)  -->
+                    <TextBlock
+                        Grid.Column="1"
+                        Margin="{Binding Margin}"
+                        DataContext="{Binding ElementName=deviceNameBox}"
+                        FontSize="{Binding FontSize}"
+                        FontWeight="Bold"
+                        Text="{Binding Text}"
+                        Visibility="Hidden" />
+                </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="DeviceFullDataTemplate" DataType="{x:Type vm:AudioDeviceVM}">
+                <!--  Combines the display data template with the controls data template  -->
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <ContentControl
+                        Margin="3,1"
+                        Content="{Binding}"
+                        ContentTemplate="{StaticResource DeviceDisplayDataTemplate}" />
+
+                    <ContentControl
+                        Grid.Row="1"
+                        Margin="3,1"
+                        Content="{Binding}"
+                        ContentTemplate="{StaticResource DeviceControlsDataTemplate}" />
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border
+        Padding="9"
+        Background="{Binding VM.BackgroundBrush}"
+        BorderThickness="7"
+        CornerRadius="{Binding VM.ConfigSection.CornerRadius}"
+        RenderOptions.EdgeMode="Aliased">
+        <Border.Style>
+            <Style TargetType="{x:Type Border}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding AudioAPI.AudioDeviceSelector.LockSelection, Source={StaticResource Settings}}" Value="True">
+                        <Setter Property="BorderBrush" Value="{Binding DeviceConfigVM.LockedAccentBrush, Source={StaticResource Settings}}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding AudioAPI.AudioDeviceSelector.LockSelection, Source={StaticResource Settings}}" Value="False">
+                        <Setter Property="BorderBrush" Value="{Binding DeviceConfigVM.UnlockedAccentBrush, Source={StaticResource Settings}}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Row 0 (ListView)  -->
+            <ListView
+                x:Name="ListView"
+                Margin="6"
+                Padding="1"
+                ItemTemplate="{StaticResource DeviceDisplayAlwaysBoldWidthDataTemplate}"
+                ItemsSource="{Binding AudioAPI.Devices, Source={StaticResource Settings}, Mode=OneWay}"
+                PreviewMouseDown="ListView_PreviewMouseDown"
+                SelectedIndex="{Binding AudioAPI.AudioDeviceSelector.SelectedIndex, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                SelectionMode="Single">
+                <i:Interaction.Behaviors>
+                    <wpfBehaviors:MouseWheelListViewBehavior />
+                </i:Interaction.Behaviors>
+                <ListView.Style>
+                    <Style TargetType="{x:Type ListView}">
+                        <Style.Triggers>
+                            <!--  Collapse list when not enabled  -->
+                            <DataTrigger Binding="{Binding DeviceConfigVM.FlagsVM.ShowFullList, Source={StaticResource Settings}}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Background" Value="#0000" />
+                        <Setter Property="FocusVisualStyle" Value="{StaticResource CustomFocusVisualStyle}" />
+                    </Style>
+                </ListView.Style>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="{x:Type ListViewItem}">
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                    <Condition Binding="{Binding AudioAPI.AudioDeviceSelector.LockSelection, Source={StaticResource Settings}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                    <Setter Property="Background" Value="{Binding DeviceConfigVM.LockedAccentBrush, Source={StaticResource Settings}}" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                    <Condition Binding="{Binding AudioAPI.AudioDeviceSelector.LockSelection, Source={StaticResource Settings}}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                    <Setter Property="Background" Value="{Binding DeviceConfigVM.UnlockedAccentBrush, Source={StaticResource Settings}}" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                        <Setter Property="Padding" Value="6,4" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ListViewItem}">
+                                    <Border
+                                        Margin="{TemplateBinding Margin}"
+                                        Padding="{TemplateBinding Padding}"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="{StaticResource RoundedControlCorner}"
+                                        FocusVisualStyle="{TemplateBinding FocusVisualStyle}">
+                                        <ContentPresenter
+                                            Content="{TemplateBinding Content}"
+                                            ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <EventSetter Event="Selected" Handler="ListViewItem_Selected" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
+
+            <!--  Row 1 (Controls)  -->
+            <Grid Grid.Row="2">
+                <Grid.Style>
+                    <Style TargetType="{x:Type Grid}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding DeviceConfigVM.FlagsVM.ShowControlBar, Source={StaticResource Settings}}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <ContentControl
+                    Margin="2"
+                    Content="{Binding AudioAPI.SelectedDevice, Source={StaticResource Settings}}"
+                    Visibility="{Binding AudioAPI.SelectedDevice, Source={StaticResource Settings}, Mode=OneWay, Converter={StaticResource NullableToVisibilityConverter}}">
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DeviceConfigVM.FlagsVM.ShowSelectedOnly, Source={StaticResource Settings}}" Value="True">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource DeviceFullDataTemplate}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                            <Setter Property="ContentTemplate" Value="{StaticResource DeviceControlsDataTemplate}" />
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
+            </Grid>
+        </Grid>
+    </Border>
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" />
+    </WindowChrome.WindowChrome>
+</Window>

@@ -1,0 +1,2160 @@
+﻿<Window
+    x:Class="VolumeControl.Mixer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:Collections="clr-namespace:VolumeControl.WPF.Collections;assembly=VolumeControl.WPF"
+    xmlns:b="clr-namespace:VolumeControl.WPF.Bindings;assembly=VolumeControl.WPF"
+    xmlns:behaviour="clr-namespace:XamlTimers;assembly=XamlTimers"
+    xmlns:controls="clr-namespace:VolumeControl.WPF.Controls;assembly=VolumeControl.WPF"
+    xmlns:conv="clr-namespace:VolumeControl.WPF.Converters;assembly=VolumeControl.WPF"
+    xmlns:core="clr-namespace:VolumeControl.Core;assembly=VolumeControl.Core"
+    xmlns:ctrlz="urn:controlzex"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:VolumeControl.Helpers"
+    xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+    xmlns:input="clr-namespace:VolumeControl.Core.Input;assembly=VolumeControl.Core"
+    xmlns:loc="clr-namespace:Localization;assembly=Localization"
+    xmlns:local="clr-namespace:VolumeControl"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:rsc="clr-namespace:VolumeControl.Properties"
+    xmlns:sys="clr-namespace:System;assembly=netstandard"
+    xmlns:vm="clr-namespace:VolumeControl.ViewModels"
+    xmlns:wpf="clr-namespace:VolumeControl.WPF;assembly=VolumeControl.WPF"
+    xmlns:wpfBehaviors="clr-namespace:VolumeControl.WPF.Behaviors;assembly=VolumeControl.WPF"
+    x:Name="window"
+    Title="Volume Control"
+    Closing="window_Closing"
+    DataContext="{Binding RelativeSource={RelativeSource Self}}"
+    FontFamily="{StaticResource InterFont}"
+    FontSize="{StaticResource GlobalFontSize}"
+    Icon="/Resources/icons/iconSilvered.ico"
+    Initialized="Window_Initialized"
+    Loaded="Window_Loaded"
+    PreviewMouseDown="window_PreviewMouseDown"
+    ResizeMode="CanMinimize"
+    SizeToContent="WidthAndHeight"
+    UseLayoutRounding="True"
+    WindowStyle="None"
+    mc:Ignorable="d">
+
+    <!--  ( Static Resources )  -->
+    <Window.Resources>
+        <ResourceDictionary>
+            <conv:SquaredCornerRadiusConverter x:Key="SquaredCornerRadiusConverter" Squared="All" />
+
+            <sys:Double x:Key="CaptionHeight">22</sys:Double>
+
+            <!--  NotificationConfig DataTemplate  -->
+            <DataTemplate x:Key="NotificationConfigDataTemplate" DataType="{x:Type vm:NotificationConfigSectionVM}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26" />
+                        <RowDefinition Height="26" />
+                        <RowDefinition Height="26" />
+                        <RowDefinition Height="26" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!--  Row 0 ; Column 0-1  -->
+                    <CheckBox
+                        x:Name="EnableNotificationCheckbox"
+                        Margin="5,3"
+                        HorizontalAlignment="Left"
+                        Content="{Tr 'VolumeControl.MainWindow.Settings.Notifications.Enable.Content',
+                                     DefaultText='Enable'}"
+                        IsChecked="{Binding ConfigSection.Enabled, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource CheckBoxStyle}"
+                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.Enable.Tooltip',
+                                     DefaultText='Enables the notification window.'}" />
+                    <CheckBox
+                        Grid.Column="1"
+                        Margin="5,3"
+                        Content="{Tr 'VolumeControl.MainWindow.Settings.Notifications.OnVolumeChange.Content',
+                                     DefaultText='On Volume Change'}"
+                        IsChecked="{Binding ConfigSection.ShowOnVolumeChanged, UpdateSourceTrigger=PropertyChanged}"
+                        IsEnabled="{Binding ConfigSection.Enabled}"
+                        Style="{StaticResource CheckBoxStyle}"
+                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.OnVolumeChange.Tooltip',
+                                     DefaultText='Show notifications when changing the volume or mute state.'}" />
+
+                    <!--  Row 1 ; Column 0-1  -->
+                    <CheckBox
+                        x:Name="EnableNotificationTimeoutCheckbox"
+                        Grid.Row="1"
+                        Margin="5,3"
+                        HorizontalAlignment="Left"
+                        Content="{Tr 'VolumeControl.MainWindow.Settings.Notifications.Timeout.Content',
+                                     DefaultText='Timeout'}"
+                        IsChecked="{Binding ConfigSection.TimeoutEnabled, UpdateSourceTrigger=PropertyChanged}"
+                        IsEnabled="{Binding ConfigSection.Enabled}"
+                        Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.Timeout.Tooltip',
+                                     DefaultText='The amount of time in milliseconds that notifications will remain visible after being triggered.'}" />
+                    <controls:NumericUpDown
+                        x:Name="BigBastard"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Height="24"
+                        MinWidth="88"
+                        Margin="6,0"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{b:MultiBinding {Binding ConfigSection.Enabled},
+                                                   {Binding IsChecked, ElementName=EnableNotificationTimeoutCheckbox},
+                                                   Converter={StaticResource MultiBindingBooleanConverter}}"
+                        MinValue="500"
+                        Style="{StaticResource NumericUpDownStyle}"
+                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.Timeout.Tooltip',
+                                     DefaultText='The amount of time in milliseconds that notifications will remain visible after being triggered.'}"
+                        Value="{Binding ConfigSection.TimeoutMs, Mode=TwoWay}">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:MouseWheelNumericUpDownBehavior Amount="50" />
+                            <wpfBehaviors:EscapeRemovesFocusBehavior />
+                        </i:Interaction.Behaviors>
+                    </controls:NumericUpDown>
+
+                    <!--  Row 2 ; Column 0-1  -->
+                    <CheckBox
+                        x:Name="EnableNotificationFadeInCheckbox"
+                        Grid.Row="2"
+                        Margin="5,3,3,3"
+                        HorizontalAlignment="Left"
+                        Content="{Tr 'VolumeControl.ListNotification.Options.DoFadeIn.Content',
+                                     DefaultText='Fade In'}"
+                        IsChecked="{Binding ConfigSection.DoFadeIn, UpdateSourceTrigger=PropertyChanged}"
+                        IsEnabled="{Binding ConfigSection.Enabled}"
+                        Style="{StaticResource CheckBoxStyle}"
+                        ToolTip="{Tr 'VolumeControl.ListNotification.Options.DoFadeIn.Tooltip',
+                                     DefaultText='When checked, the notification window shows a fade-in animation instead of instantly appearing.'}" />
+                    <TextBox
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        Width="{Binding ActualWidth, ElementName=BigBastard}"
+                        Margin="5,0"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{b:MultiBinding {Binding ConfigSection.Enabled},
+                                                   {Binding IsChecked, ElementName=EnableNotificationFadeInCheckbox},
+                                                   Converter={StaticResource MultiBindingBooleanConverter}}"
+                        Style="{StaticResource RoundedTextBoxStyle}"
+                        Text="{Binding ConfigSection.FadeInDuration, UpdateSourceTrigger=LostFocus}"
+                        ToolTip="{Tr 'VolumeControl.ListNotification.Options.FadeIn.Tooltip',
+                                     DefaultText='Specifies the duration of the fade-in animation in milliseconds.'}" />
+
+                    <!--  Row 3 ; Column 0-1  -->
+                    <CheckBox
+                        x:Name="EnableNotificationFadeOutCheckbox"
+                        Grid.Row="3"
+                        Margin="5,3,3,3"
+                        HorizontalAlignment="Left"
+                        Content="{Tr 'VolumeControl.ListNotification.Options.DoFadeOut.Content',
+                                     DefaultText='Fade Out'}"
+                        IsChecked="{Binding ConfigSection.DoFadeOut, UpdateSourceTrigger=PropertyChanged}"
+                        IsEnabled="{Binding ConfigSection.Enabled}"
+                        Style="{StaticResource CheckBoxStyle}"
+                        ToolTip="{Tr 'VolumeControl.ListNotification.Options.DoFadeOut.Tooltip',
+                                     DefaultText='When checked, the notification window shows a fade-out animation instead of instantly disappearing.'}" />
+                    <TextBox
+                        Grid.Row="3"
+                        Grid.Column="1"
+                        Width="{Binding ActualWidth, ElementName=BigBastard}"
+                        Margin="5,0"
+                        HorizontalAlignment="Stretch"
+                        IsEnabled="{b:MultiBinding {Binding ConfigSection.Enabled},
+                                                   {Binding IsChecked, ElementName=EnableNotificationFadeOutCheckbox},
+                                                   Converter={StaticResource MultiBindingBooleanConverter}}"
+                        Style="{StaticResource RoundedTextBoxStyle}"
+                        Text="{Binding ConfigSection.FadeOutDuration, UpdateSourceTrigger=LostFocus}"
+                        ToolTip="{Tr 'VolumeControl.ListNotification.Options.FadeOut.Tooltip',
+                                     DefaultText='Specifies the duration of the fade-out animation in milliseconds.'}" />
+
+                    <!--  Row 4 ; Column 0-1  -->
+                    <Expander
+                        Grid.Row="4"
+                        Grid.ColumnSpan="2"
+                        IsExpanded="{Binding IsNotificationConfigAdditionalSettingsExpanderOpen, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ExpanderStyle}">
+                        <Expander.Header>
+                            <Grid>
+                                <TextBlock
+                                    Margin="8,1"
+                                    Panel.ZIndex="1"
+                                    Style="{StaticResource WatermarkTextBlockStyle}"
+                                    Text="View Mode" />
+                                <ComboBox
+                                    Margin="3,1"
+                                    Panel.ZIndex="0"
+                                    IsEditable="False"
+                                    ItemsSource="{Binding FlagsVM.Items}"
+                                    SelectionChanged="ComboBox_RemoveSelection"
+                                    Style="{StaticResource ComboBoxStyle}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox
+                                                Content="{Binding Name}"
+                                                IsChecked="{Binding IsSet}"
+                                                Style="{StaticResource CheckBoxStyle}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </Expander.Header>
+
+                        <Grid HorizontalAlignment="Center">
+                            <Grid.Resources>
+                                <Style BasedOn="{StaticResource RoundedTextBoxStyle}" TargetType="{x:Type TextBox}">
+                                    <Setter Property="MaxLength" Value="9" />
+                                    <Setter Property="Margin" Value="5,3,3,3" />
+                                    <Setter Property="ToolTipService.BetweenShowDelay" Value="100" />
+                                    <Setter Property="ToolTipService.InitialShowDelay" Value="200" />
+                                </Style>
+                                <Style TargetType="{x:Type Ellipse}">
+                                    <Setter Property="Width" Value="15" />
+                                    <Setter Property="Height" Value="15" />
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Stroke" Value="{StaticResource TextBoxBackground}" />
+                                </Style>
+                            </Grid.Resources>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition />
+                                <RowDefinition />
+                            </Grid.RowDefinitions>
+
+                            <!--  Row 0 ; Col 0-1  -->
+                            <TextBox
+                                Grid.Column="0"
+                                Text="{Binding ConfigSection.BackgroundColor}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.ColorPicker.Background.Tooltip',
+                                             DefaultText='Sets the background color of the notification window.'}">
+                                <i:Interaction.Behaviors>
+                                    <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                </i:Interaction.Behaviors>
+                            </TextBox>
+                            <Ellipse Grid.Column="1" Fill="{Binding BackgroundBrush}" />
+                            <!--  Row 0 ; Col 2-3  -->
+                            <TextBox
+                                Grid.Column="2"
+                                Text="{Binding ConfigSection.TextColor}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.ColorPicker.Foreground.Tooltip',
+                                             DefaultText='Sets the text color of the notification window.'}">
+                                <i:Interaction.Behaviors>
+                                    <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                </i:Interaction.Behaviors>
+                            </TextBox>
+                            <Ellipse Grid.Column="3" Fill="{Binding ForegroundBrush}" />
+
+                            <!--  Row 1 ; Col 0-1  -->
+                            <TextBox
+                                Grid.Row="1"
+                                Text="{Binding ConfigSection.LockedColor}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.ColorPicker.LockedAccent.Tooltip',
+                                             DefaultText='Sets the accent color of the notification window when selection is locked.'}">
+                                <i:Interaction.Behaviors>
+                                    <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                </i:Interaction.Behaviors>
+                            </TextBox>
+                            <Ellipse
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Fill="{Binding LockedAccentBrush}" />
+                            <!--  Row 1 ; Col 2-3  -->
+                            <TextBox
+                                Grid.Row="1"
+                                Grid.Column="2"
+                                Text="{Binding ConfigSection.UnlockedColor}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.ColorPicker.UnlockedAccent.Tooltip',
+                                             DefaultText='Sets the accent color of the notification window when selection is unlocked.'}">
+                                <i:Interaction.Behaviors>
+                                    <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                </i:Interaction.Behaviors>
+                            </TextBox>
+                            <Ellipse
+                                Grid.Row="1"
+                                Grid.Column="3"
+                                Fill="{Binding UnlockedAccentBrush}" />
+
+                            <!--  Row 2 ; Col 0-3  -->
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.ColumnSpan="2"
+                                Margin="5,3"
+                                Style="{StaticResource TextBlockStyle}"
+                                Text="{Tr 'VolumeControl.MainWindow.Settings.Notifications.CornerRadius.Content',
+                                          DefaultText='Corner Radius:'}" />
+                            <TextBox
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                Grid.ColumnSpan="2"
+                                MaxLength="-1"
+                                Text="{Binding ConfigSection.CornerRadius}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.CornerRadius.Tooltip',
+                                             DefaultText='The radius of the corners of the notification window. Starts at the top-left corner and goes clockwise.'}">
+                                <i:Interaction.Behaviors>
+                                    <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                </i:Interaction.Behaviors>
+                            </TextBox>
+                        </Grid>
+                    </Expander>
+                </Grid>
+            </DataTemplate>
+
+            <!--  Label  -->
+            <Style x:Key="LabelStyle" TargetType="Label">
+                <Style.Triggers>
+                    <!--  Change the color of label text when disabled to something visible  -->
+                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource Self}}" Value="False">
+                        <Setter Property="Foreground" Value="LightGray" />
+                    </DataTrigger>
+                </Style.Triggers>
+                <Setter Property="Background" Value="#00000000" />
+                <Setter Property="Foreground" Value="WhiteSmoke" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Style>
+            <!--  Mixer Headers  -->
+            <Style x:Key="MixerHeadersStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Height" Value="24" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="WhiteSmoke" />
+                <Setter Property="Background" Value="{StaticResource HeaderBackgroundBrush}" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Style>
+            <!--  Mixer Cell  -->
+            <Style TargetType="{x:Type DataGridCell}">
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="WhiteSmoke" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="False">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="WhiteSmoke" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                    </Trigger>
+                    <!--  Focused  -->
+                    <DataTrigger Binding="{Binding IsFocused, RelativeSource={RelativeSource Self}}" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
+                        <Setter Property="BorderThickness" Value="{StaticResource SelectionBorderThickness}" />
+                    </DataTrigger>
+                </Style.Triggers>
+                <Setter Property="IsTabStop" Value="False" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="Padding" Value="1" />
+                <Setter Property="FontSize" Value="{StaticResource GlobalFontSize}" />
+                <Setter Property="Focusable" Value="False" />
+            </Style>
+            <Style TargetType="{x:Type DataGridRow}">
+                <Setter Property="BorderThickness" Value="0" />
+            </Style>
+            <!--  DataGridStyle  -->
+            <Style x:Key="DataGridStyle" TargetType="DataGrid">
+                <Setter Property="Background" Value="#0000" />
+                <Setter Property="RowBackground" Value="{StaticResource GridRowBrush}" />
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource GridRowAltBrush}" />
+                <Setter Property="ColumnHeaderStyle" Value="{StaticResource MixerHeadersStyle}" />
+                <Setter Property="AlternationCount" Value="1" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+                <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+                <Setter Property="HeadersVisibility" Value="Column" />
+                <Setter Property="SelectionUnit" Value="Cell" />
+                <Setter Property="SelectionMode" Value="Single" />
+                <Setter Property="GridLinesVisibility" Value="None" />
+                <Setter Property="Margin" Value="5" />
+            </Style>
+            <!--  TabControl  -->
+            <Style x:Key="TabControlStyle" TargetType="ctrlz:TabControlEx">
+                <Setter Property="Background" Value="{StaticResource TabBackgroundBrush}" />
+                <Setter Property="Foreground" Value="WhiteSmoke" />
+            </Style>
+
+            <!--  EventTypeOptions (VolumeControl.Log.BindableEventTypeOptions)  -->
+            <vm:LogFilterFlagsVM x:Key="LogFilterVM" />
+
+            <!--  SectionStyle (Settings/Debug)  -->
+            <Style
+                x:Key="SectionStyle"
+                BasedOn="{StaticResource BorderStyle}"
+                TargetType="{x:Type Border}">
+                <Setter Property="Margin" Value="3" />
+                <Setter Property="Background" Value="#303030" />
+                <Setter Property="Padding" Value="2" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="BorderBrush" Value="{StaticResource AccentForeground}" />
+                <Setter Property="CornerRadius" Value="9" />
+            </Style>
+            <!--  HeaderLabelStyle (Settings/Debug)  -->
+            <Style
+                x:Key="HeaderLabelStyle"
+                BasedOn="{StaticResource LabelStyle}"
+                TargetType="{x:Type Label}">
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="Foreground" Value="{StaticResource HeaderForegroundBrush}" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Style>
+            <!--  SectionSubGridStyle (Settings/Debug)  -->
+            <Style x:Key="SectionSubGridStyle" TargetType="{x:Type Grid}">
+                <Setter Property="Margin" Value="5,3" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Style>
+            <Style BasedOn="{StaticResource ExpanderStyle}" TargetType="{x:Type Expander}" />
+            <!--  Tab Item Appearance  -->
+            <Style TargetType="{x:Type TabItem}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type TabItem}">
+                            <Grid>
+                                <Border
+                                    Name="Border"
+                                    Margin="{TemplateBinding Margin}"
+                                    Padding="{TemplateBinding Padding}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6,6,0,0"
+                                    RenderOptions.EdgeMode="Aliased">
+                                    <ContentPresenter
+                                        x:Name="ContentSite"
+                                        Margin="{TemplateBinding Padding}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        ContentSource="Header"
+                                        TextBlock.Foreground="{TemplateBinding Foreground}" />
+                                </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <!--  SELECTED TAB APPEARANCE:  -->
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="{StaticResource TabBackgroundBrush}" />
+                                    <Setter TargetName="Border" Property="Margin" Value="1,-1" />
+                                    <Setter TargetName="ContentSite" Property="TextBlock.Foreground" Value="{StaticResource TextBoxForeground}" />
+                                    <Setter TargetName="ContentSite" Property="TextBlock.FontWeight" Value="Bold" />
+                                    <Setter TargetName="ContentSite" Property="TextBlock.FontSize" Value="13" />
+                                </Trigger>
+                                <!--  UNSELECTED TAB APPEARANCE:  -->
+                                <Trigger Property="IsSelected" Value="False">
+                                    <Setter TargetName="Border" Property="Background" Value="{StaticResource TabUnselectedBackgroundBrush}" />
+                                    <Setter TargetName="ContentSite" Property="TextBlock.Foreground" Value="{StaticResource TextBoxForegroundDark}" />
+                                    <Setter TargetName="ContentSite" Property="TextBlock.FontWeight" Value="Medium" />
+                                    <Setter TargetName="ContentSite" Property="TextBlock.FontSize" Value="11" />
+                                </Trigger>
+                                <Trigger Property="IsFocused" Value="True">
+                                    <Setter TargetName="ContentSite" Property="TextBlock.Foreground" Value="{StaticResource SelectionForegroundBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Margin" Value="1,0" />
+                <Setter Property="Padding" Value="5,1.34" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Style>
+
+            <!--  Hyperlink  -->
+            <Style TargetType="{x:Type Hyperlink}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True">
+                        <Setter Property="Foreground" Value="{StaticResource SelectionBorderBrush}" />
+                        <Setter Property="TextDecorations" Value="Underline" />
+                    </DataTrigger>
+                </Style.Triggers>
+                <Setter Property="TextDecorations" Value="None" />
+                <Setter Property="BaselineAlignment" Value="Baseline" />
+                <Setter Property="Foreground" Value="{StaticResource TextBoxForeground}" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Style>
+            <!--  ListBox style  -->
+            <Style x:Key="ListBoxStyle" TargetType="{x:Type ListBox}">
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Background" Value="{StaticResource TextBoxBackground}" />
+                <Setter Property="Foreground" Value="{StaticResource TextBoxForeground}" />
+                <Setter Property="FocusVisualStyle" Value="{StaticResource CustomFocusVisualStyle}" />
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <Style TargetType="{x:Type ListBoxItem}">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="FocusVisualStyle" Value="{StaticResource CustomFocusVisualStyle}" />
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!--  KeyOptions  -->
+            <helpers:KeyOptions x:Key="KeyOptions" />
+
+            <!--  URIs  -->
+            <sys:Uri x:Key="VolumeControlRepository">https://github.com/radj307/volume-control</sys:Uri>
+            <sys:Uri x:Key="VolumeControlReleases">https://github.com/radj307/volume-control/releases</sys:Uri>
+            <sys:Uri x:Key="VolumeControlLatestRelease">https://github.com/radj307/volume-control/releases/latest</sys:Uri>
+            <sys:Uri x:Key="VolumeControlBugReport">https://github.com/radj307/volume-control/issues/new?assignees=radj307&amp;labels=bug%2Ctriage&amp;template=BugReport.yml&amp;title=%5BBUG%5D+</sys:Uri>
+
+            <ImageSource x:Key="VolumeControlIcon">pack://application:,,,/Resources/images/icon.png</ImageSource>
+
+        </ResourceDictionary>
+    </Window.Resources>
+    <!--  ( Window Background )  -->
+    <Window.Style>
+        <Style TargetType="{x:Type Window}">
+            <Setter Property="ShowInTaskbar" Value="{Binding ShowInTaskbar, Source={StaticResource Settings}, Mode=OneWay}" />
+            <Setter Property="Background" Value="{StaticResource WindowBackgroundBrush}" />
+        </Style>
+    </Window.Style>
+
+    <!--  ( Element Layout )  -->
+    <!--  Window Border  -->
+    <Border
+        BorderBrush="{StaticResource WindowBorderBrush}"
+        BorderThickness="{StaticResource WindowBorderThickness}"
+        CornerRadius="{StaticResource RoundedWindowCorner}">
+        <VirtualizingStackPanel FlowDirection="LeftToRight" Orientation="Vertical">
+            <!--  v Caption Bar v  -->
+            <Grid Name="CaptionBar" Height="{StaticResource CaptionHeight}">
+                <!--  RESOURCES  -->
+                <Grid.Resources>
+                    <!--  Caption Button Style:  -->
+                    <Style x:Key="CaptionButtonStyle" TargetType="{x:Type Button}">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type Button}">
+                                    <Border
+                                        x:Name="ButtonMouseOver"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        RenderOptions.EdgeMode="Aliased"
+                                        Style="{StaticResource BorderStyle}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ButtonMouseOver" Property="Background" Value="#22FFFFFF" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="ButtonMouseOver" Property="Background" Value="#44FFFFFF" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+                        <Setter Property="Width" Value="{StaticResource CaptionHeight}" />
+                        <Setter Property="Height" Value="{StaticResource CaptionHeight}" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="FontWeight" Value="Black" />
+                        <Setter Property="Background" Value="#00000000" />
+                        <Setter Property="Foreground" Value="LightGray" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="HorizontalContentAlignment" Value="Center" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="IsHitTestVisible" Value="true" />
+                    </Style>
+                    <Style
+                        x:Key="CaptionTextBlockStyle"
+                        BasedOn="{StaticResource TextBlockStyle}"
+                        TargetType="{x:Type TextBlock}">
+                        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="HorizontalAlignment" Value="Right" />
+                    </Style>
+                    <Style x:Key="CaptionHyperlinkStyle" TargetType="{x:Type Hyperlink}">
+                        <Setter Property="TextDecorations" Value="None" />
+                        <Setter Property="BaselineAlignment" Value="Center" />
+                        <Setter Property="Foreground" Value="{StaticResource TextBoxForeground}" />
+                    </Style>
+                </Grid.Resources>
+                <!--  COLUMN DEFINITIONS  -->
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <!--  LAYOUT  -->
+
+                <!--  Title  -->
+                <TextBlock
+                    Grid.Column="1"
+                    Margin="7,0"
+                    VerticalAlignment="Center"
+                    FontWeight="SemiBold"
+                    Foreground="LightGray"
+                    Text="{Tr 'VolumeControl.MainWindow.CaptionBar.Title.Content',
+                              DefaultText='Volume Control'}" />
+                <!--  Update Icon  -->
+                <TextBlock
+                    Grid.Column="3"
+                    FlowDirection="RightToLeft"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    ToolTip="{Binding UpdateVersion, Source={StaticResource Settings}, Mode=OneWay}"
+                    Visibility="{Binding UpdateAvailable, Source={StaticResource Settings}, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Hyperlink
+                        KeyboardNavigation.IsTabStop="False"
+                        NavigateUri="{StaticResource VolumeControlLatestRelease}"
+                        TextDecorations="None">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:HyperlinkOpenInBrowserBehavior />
+                        </i:Interaction.Behaviors>
+                        <TextBlock
+                            FontSize="10"
+                            FontWeight="Regular"
+                            Foreground="{StaticResource UpdateIconBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="▲" />
+                    </Hyperlink>
+                </TextBlock>
+                <!--  Version label  -->
+                <Label
+                    x:Name="versionLabel"
+                    Grid.Column="4"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    FontFamily="Verdana"
+                    FontSize="10.6"
+                    FontWeight="Black"
+                    Foreground="LightGray"
+                    Style="{StaticResource LabelStyle}">
+                    <!--  This hyperlink must NOT use the 'CaptionHyperlinkStyle' or it'll lose its dynamic-underlining  -->
+                    <Hyperlink KeyboardNavigation.IsTabStop="False" NavigateUri="{StaticResource VolumeControlRepository}">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:HyperlinkOpenInBrowserBehavior />
+                        </i:Interaction.Behaviors>
+                        <TextBlock
+                            Foreground="LightGray"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{Binding CurrentVersionString, Source={StaticResource Settings}}" />
+                    </Hyperlink>
+                </Label>
+                <!--  Bug Report Icon  -->
+                <Button
+                    Grid.Column="5"
+                    Cursor="Hand"
+                    FontSize="10"
+                    FontWeight="Thin"
+                    IsTabStop="False"
+                    Style="{StaticResource CaptionButtonStyle}"
+                    ToolTip="{Tr 'VolumeControl.MainWindow.CaptionBar.BugReport.Tooltip',
+                                 DefaultText='Report a Bug'}"
+                    ToolTipService.InitialShowDelay="100">
+                    <Hyperlink
+                        KeyboardNavigation.IsTabStop="False"
+                        NavigateUri="{StaticResource VolumeControlBugReport}"
+                        Style="{StaticResource CaptionHyperlinkStyle}">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:HyperlinkOpenInBrowserBehavior />
+                        </i:Interaction.Behaviors>
+                        <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Text="{Tr 'VolumeControl.MainWindow.CaptionBar.BugReport.Content', DefaultText='✏'}" />
+                    </Hyperlink>
+                </Button>
+                <!--  Minimize Icon  -->
+                <Button
+                    Grid.Column="6"
+                    Click="Handle_MinimizeClick"
+                    Content="―"
+                    Cursor="Hand"
+                    IsTabStop="False"
+                    Style="{StaticResource CaptionButtonStyle}" />
+                <!--  Maximize Icon  -->
+                <Button
+                    Grid.Column="7"
+                    Click="Handle_MaximizeClick"
+                    Content="□"
+                    Cursor="Hand"
+                    IsTabStop="False"
+                    Style="{StaticResource CaptionButtonStyle}"
+                    Visibility="Collapsed" />
+                <!--  Close Icon  -->
+                <Button
+                    Grid.Column="8"
+                    Click="Handle_CloseClick"
+                    Content="❌"
+                    Cursor="Hand"
+                    IsTabStop="False"
+                    Style="{StaticResource CaptionButtonStyle}" />
+            </Grid>
+            <!--  ^ Caption Bar ^  -->
+
+
+            <!--  Tab Controller  -->
+            <ctrlz:TabControlEx
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                MoveFocusToContentWhenSelectionChanges="False"
+                Style="{StaticResource TabControlStyle}">
+
+                <!--  ▼ Mixer Tab ▼  -->
+                <TabItem Name="MixerTab" Header="{Tr 'VolumeControl.MainWindow.Mixer.TabHeader', DefaultText='Mixer'}">
+                    <TabItem.Resources>
+                        <Style
+                            x:Key="SectionStyle"
+                            BasedOn="{StaticResource BorderStyle}"
+                            TargetType="{x:Type Border}">
+                            <Setter Property="Background" Value="{StaticResource TabBackgroundBrush}" />
+                            <Setter Property="BorderThickness" Value="3" />
+                            <Setter Property="BorderBrush" Value="{StaticResource TabBorderBrush}" />
+                            <Setter Property="HorizontalAlignment" Value="Center" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                            <Setter Property="Padding" Value="2" />
+                            <Setter Property="Margin" Value="0,1,0,4" />
+                        </Style>
+                    </TabItem.Resources>
+
+                    <Border
+                        Margin="0,2,0,0"
+                        BorderBrush="{StaticResource TabBackgroundBrush}"
+                        BorderThickness="2,0,2,2">
+                        <VirtualizingStackPanel FlowDirection="LeftToRight" Orientation="Vertical">
+                            <!--  Target Selection Row  -->
+                            <Grid
+                                x:Name="targetSelectionRow"
+                                Margin="3,5,3,3"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border
+                                    x:Name="targetboxBorder"
+                                    Padding="4"
+                                    Background="{StaticResource TextBoxBackground}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RoundedControlCorner}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox
+                                            x:Name="targetbox"
+                                            d:Text=""
+                                            AutoWordSelection="True"
+                                            Background="#0000"
+                                            BorderThickness="0"
+                                            Foreground="{StaticResource TextBoxForeground}"
+                                            HorizontalScrollBarVisibility="Hidden"
+                                            IsEnabled="{Binding IsChecked, ElementName=cbLockTargetSelection, Converter={StaticResource InvertConverter}}"
+                                            IsInactiveSelectionHighlightEnabled="True"
+                                            MouseDoubleClick="Handle_TargetNameBoxDoubleClick"
+                                            Style="{StaticResource TextBoxStyle}"
+                                            Text="{Binding TargetBoxVM.TargetText, Source={StaticResource Settings}, UpdateSourceTrigger=LostFocus}">
+                                            <i:Interaction.Behaviors>
+                                                <wpfBehaviors:TextBoxAutocompleteBehavior ItemsSource="{Binding AudioSessionProcessIdentifierAutocompleteSource, Source={StaticResource Settings}}" StringComparison="OrdinalIgnoreCase" />
+                                                <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
+                                        <TextBlock
+                                            Margin="5,0"
+                                            Style="{StaticResource WatermarkTextBlockStyle}"
+                                            Text="{Tr 'VolumeControl.MainWindow.Mixer.TargetBox.Watermark',
+                                                      DefaultText='Process ID or Name'}"
+                                            Visibility="{Binding Text.IsEmpty, ElementName=targetbox, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        <CheckBox
+                                            x:Name="cbLockTargetSelection"
+                                            Grid.Column="2"
+                                            Margin="3"
+                                            Content="{Tr 'VolumeControl.MainWindow.Mixer.TargetBox.LockTarget',
+                                                         DefaultText='Lock'}"
+                                            IsChecked="{Binding LockTargetSession, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource CheckBoxStyle}" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!--  Mixer DataGrid Row  -->
+                            <Border
+                                x:Name="MixerDataGridOuterBorder"
+                                Padding="0"
+                                BorderThickness="0"
+                                Style="{StaticResource BorderStyle}">
+                                <Grid>
+                                    <Border Name="MixerGridMask" Style="{StaticResource RoundBorderMaskStyle}" />
+                                    <controls:DataGridWithoutNavKeys
+                                        x:Name="MixerGrid"
+                                        d:ItemsSource="{x:Null}"
+                                        AutoGenerateColumns="False"
+                                        CanUserResizeColumns="False"
+                                        DataContext="{StaticResource Settings}"
+                                        ItemsSource="{Binding AudioAPI.AllSessions}"
+                                        Style="{StaticResource DataGridStyle}">
+                                        <DataGrid.OpacityMask>
+                                            <VisualBrush Visual="{Binding ElementName=MixerGridMask}" />
+                                        </DataGrid.OpacityMask>
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="{x:Type DataGridRow}">
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding AudioSession.DataFlow}" Value="Capture" />
+                                                            <Condition Binding="{Binding AlternationIndex, RelativeSource={RelativeSource Self}}" Value="0" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.Setters>
+                                                            <Setter Property="Background" Value="{StaticResource GridSecondaryRowBrush}" />
+                                                        </MultiDataTrigger.Setters>
+                                                    </MultiDataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding AudioSession.DataFlow}" Value="Capture" />
+                                                            <Condition Binding="{Binding AlternationIndex, RelativeSource={RelativeSource Self}}" Value="1" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.Setters>
+                                                            <Setter Property="Background" Value="{StaticResource GridSecondaryRowAltBrush}" />
+                                                        </MultiDataTrigger.Setters>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.Columns>
+                                            <!--  Selected  -->
+                                            <DataGridTemplateColumn Width="26">
+                                                <DataGridTemplateColumn.Header>
+                                                    <CheckBox
+                                                        IsChecked="{Binding AudioAPI.AllSessionsSelected, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                                        IsThreeState="True"
+                                                        Style="{StaticResource CheckBoxStyle}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Mixer.MixerGrid.Selected.Header.Tooltip',
+                                                                     DefaultText='(De)selects all sessions.'}" />
+                                                </DataGridTemplateColumn.Header>
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:AudioSessionVM}">
+                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CheckBoxStyle}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <!--  PID  -->
+                                            <DataGridTemplateColumn
+                                                Width="Auto"
+                                                Header="{Tr 'VolumeControl.MainWindow.Mixer.MixerGrid.PID.Header',
+                                                            DefaultText='PID'}"
+                                                IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:AudioSessionVM}">
+                                                        <TextBlock
+                                                            Margin="3,0"
+                                                            VerticalAlignment="Center"
+                                                            Style="{StaticResource TextBlockStyle}"
+                                                            Text="{Binding PID, Mode=OneWay}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <!--  Name  -->
+                                            <DataGridTemplateColumn
+                                                x:Name="dgSessionNameColumn"
+                                                Width="Auto"
+                                                MinWidth="150"
+                                                Header="{Tr 'VolumeControl.MainWindow.Mixer.MixerGrid.Name.Header',
+                                                            DefaultText='Name'}"
+                                                IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:AudioSessionVM}">
+                                                        <Grid Margin="2,0,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="20" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Image
+                                                                Source="{Binding Icon, Mode=OneTime}"
+                                                                Style="{StaticResource IconImageStyle}"
+                                                                Visibility="{Binding ShowIcons, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                            <TextBlock
+                                                                Grid.Column="1"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="Center"
+                                                                Background="#0000"
+                                                                Text="{Binding AudioSession.Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <!--  Mute  -->
+                                            <DataGridTemplateColumn Width="40" Header="{Tr 'VolumeControl.MainWindow.Mixer.MixerGrid.Mute.Header', DefaultText='Mute'}">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:AudioSessionVM}">
+                                                        <CheckBox IsChecked="{Binding AudioSession.Mute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CheckBoxStyle}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <!--  Volume  -->
+                                            <DataGridTemplateColumn Width="170" Header="{Tr 'VolumeControl.MainWindow.Mixer.MixerGrid.Volume.Header', DefaultText='Volume'}">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:AudioSessionVM}">
+                                                        <Grid Margin="1" VerticalAlignment="Center">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <Grid.ColumnDefinitions>
+                                                                <!--  Slider  -->
+                                                                <ColumnDefinition Width="*" />
+                                                                <!--  Divider  -->
+                                                                <ColumnDefinition Width="2" />
+                                                                <!--  TextBox  -->
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <!--  Slider  -->
+                                                            <Slider
+                                                                x:Name="dgVolumeSlider"
+                                                                Grid.Column="0"
+                                                                LargeChange="5"
+                                                                Maximum="100"
+                                                                Minimum="0"
+                                                                SmallChange="1"
+                                                                Tag="{Binding AudioSession.PeakMeterValue, Mode=OneWay}"
+                                                                Value="{Binding AudioSession.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                                <i:Interaction.Behaviors>
+                                                                    <wpfBehaviors:MouseWheelRangeBaseBehavior Amount="{Binding VolumeStepSize, Source={StaticResource Settings}}" />
+                                                                    <behaviour:IntervalUpdateBinding
+                                                                        EnableTimer="{Binding ShowPeakMeters, Source={StaticResource Settings}}"
+                                                                        Interval="{Binding PeakMeterUpdateIntervalMs, Source={StaticResource Settings}}"
+                                                                        Property="{x:Static FrameworkElement.TagProperty}" />
+                                                                </i:Interaction.Behaviors>
+                                                            </Slider>
+                                                            <!--  TextBox  -->
+                                                            <TextBox
+                                                                x:Name="dgVolumeTextBox"
+                                                                Grid.Column="2"
+                                                                MinWidth="35"
+                                                                Background="#0000"
+                                                                BorderBrush="#0000"
+                                                                BorderThickness="0"
+                                                                FontStyle="Normal"
+                                                                Style="{StaticResource TextBoxStyle}"
+                                                                Text="{Binding AudioSession.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <!--  Select  -->
+                                            <DataGridTemplateColumn Width="Auto" IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:AudioSessionVM}">
+                                                        <Button
+                                                            Padding="6,0"
+                                                            Click="Handle_ProcessSelectClick"
+                                                            Content="{Tr 'VolumeControl.MainWindow.Mixer.MixerGrid.Select.Button',
+                                                                         DefaultText='Select'}"
+                                                            FontStyle="Normal"
+                                                            IsEnabled="{Binding IsChecked, ElementName=cbLockTargetSelection, Converter={StaticResource InvertConverter}}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </controls:DataGridWithoutNavKeys>
+                                </Grid>
+                            </Border>
+                        </VirtualizingStackPanel>
+                    </Border>
+                </TabItem>
+                <!--  ▲ Mixer Tab ▲  -->
+
+
+                <!--  ▼ Hotkeys Tab ▼  -->
+                <TabItem Name="HotkeysTab" Header="{Tr 'VolumeControl.MainWindow.Hotkeys.TabHeader', DefaultText='Hotkeys'}">
+                    <!--  HotkeyGrid  -->
+                    <DockPanel>
+                        <!--  Bottom panel  -->
+                        <Grid Margin="3,0,3,5" DockPanel.Dock="Bottom">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock
+                                Margin="5,0"
+                                Style="{StaticResource TextBlockStyle}"
+                                Text="{Tr 'VolumeControl.MainWindow.Hotkeys.ControlRow.VolumeStep.Content',
+                                          DefaultText='Volume Step'}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Hotkeys.ControlRow.VolumeStep.Tooltip',
+                                             DefaultText='This is the number of volume ticks that change each time you press the volume up or down hotkeys.'}" />
+                            <controls:NumericUpDown
+                                x:Name="nudVolumeStepSize"
+                                Grid.Column="1"
+                                MinWidth="55"
+                                Margin="5,0"
+                                HorizontalAlignment="Center"
+                                DataContext="{StaticResource Settings}"
+                                MaxValue="100"
+                                MinValue="1"
+                                Style="{StaticResource NumericUpDownStyle}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Hotkeys.ControlRow.VolumeStep.Tooltip',
+                                             DefaultText='This is the number of volume ticks that change each time you press the volume up or down hotkeys.'}"
+                                Value="{Binding VolumeStepSize, Mode=TwoWay, Source={StaticResource Settings}}">
+                                <i:Interaction.Behaviors>
+                                    <wpfBehaviors:MouseWheelNumericUpDownBehavior Amount="1" />
+                                </i:Interaction.Behaviors>
+                            </controls:NumericUpDown>
+                            <Button
+                                Grid.Column="2"
+                                Margin="5,0,0,0"
+                                Click="Handle_CreateNewHotkeyClick"
+                                Content="{Tr 'VolumeControl.MainWindow.Hotkeys.CreateNewHotkeyButton.Content',
+                                             DefaultText='Create New Hotkey'}"
+                                ToolTip="{Tr 'VolumeControl.MainWindow.Hotkeys.CreateNewHotkeyButton.Tooltip',
+                                             DefaultText='Creates a new blank hotkey entry.'}" />
+                        </Grid>
+
+                        <Grid>
+                            <Border Name="HotkeyGridMask" Style="{StaticResource RoundBorderMaskStyle}" />
+
+                            <DataGrid
+                                x:Name="HotkeyGrid"
+                                d:ItemsSource="{x:Null}"
+                                AutoGenerateColumns="False"
+                                BorderThickness="0"
+                                CanUserReorderColumns="False"
+                                CanUserSortColumns="False"
+                                DataContext="{Binding HotkeyAPI.Hotkeys, Source={StaticResource Settings}}"
+                                ItemsSource="{Binding UpdateSourceTrigger=PropertyChanged}"
+                                Style="{StaticResource DataGridStyle}">
+                                <DataGrid.OpacityMask>
+                                    <VisualBrush Visual="{Binding ElementName=HotkeyGridMask}" />
+                                </DataGrid.OpacityMask>
+
+                                <DataGrid.Columns>
+                                    <!--  Active  -->
+                                    <DataGridTemplateColumn Width="Auto" CanUserResize="False">
+                                        <DataGridTemplateColumn.Header>
+                                            <CheckBox
+                                                Margin="3,0,0,0"
+                                                IsChecked="{Binding HotkeyAPI.AllSelected, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                                IsThreeState="True"
+                                                Style="{StaticResource CheckBoxStyle}"
+                                                ToolTip="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Active.Header.Tooltip',
+                                                             DefaultText='(Un)registers all hotkeys in the list.'}" />
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <CheckBox
+                                                    Margin="3,0,0,0"
+                                                    IsChecked="{Binding Hotkey.IsRegistered, UpdateSourceTrigger=PropertyChanged}"
+                                                    ToolTip="{Binding Hotkey.ErrorMessage}"
+                                                    ToolTipService.InitialShowDelay="100">
+                                                    <CheckBox.Style>
+                                                        <Style BasedOn="{StaticResource CheckBoxStyle}" TargetType="{x:Type CheckBox}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Hotkey.HasError}" Value="True">
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource CancelRed}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </CheckBox.Style>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Name  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="130"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Name.Header',
+                                                    DefaultText='Name'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <TextBox
+                                                    VerticalAlignment="Center"
+                                                    Background="#00000000"
+                                                    BorderThickness="0"
+                                                    Style="{StaticResource TextBoxStyle}"
+                                                    Text="{Binding Hotkey.Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Key  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="180"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Key.Header',
+                                                    DefaultText='Key'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <ComboBox
+                                                        x:Name="KeySelectorComboBox"
+                                                        DisplayMemberPath="Name"
+                                                        ItemsSource="{StaticResource KeyOptions}"
+                                                        SelectedValue="{Binding Hotkey.Key, UpdateSourceTrigger=PropertyChanged}"
+                                                        SelectedValuePath="Key"
+                                                        Style="{StaticResource ComboBoxStyle}">
+                                                        <i:Interaction.Behaviors>
+                                                            <wpfBehaviors:DisableMouseWheelBehavior />
+                                                        </i:Interaction.Behaviors>
+                                                    </ComboBox>
+                                                    <Button
+                                                        x:Name="KeySelectorToggleButton"
+                                                        Grid.Column="1"
+                                                        Width="{Binding ActualHeight, RelativeSource={RelativeSource Self}}"
+                                                        Margin="3,2,0,2"
+                                                        PreviewMouseDown="KeySelectorToggleButton_PreviewMouseDown"
+                                                        PreviewMouseUp="KeySelectorToggleButton_PreviewMouseUp"
+                                                        Style="{StaticResource DarkButtonStyle}"
+                                                        Tag="{Binding ElementName=KeySelectorComboBox}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Key.KeySelector.Tooltip',
+                                                                     DefaultText='Click and hold with the mouse, then press a key to select it. Registered hotkeys can still be triggered.'}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Alt  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="30"
+                                        CanUserResize="False"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Alt.Header',
+                                                    DefaultText='Alt'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <CheckBox IsChecked="{Binding Hotkey.Alt, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CheckBoxStyle}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Ctrl  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="30"
+                                        CanUserResize="False"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Ctrl.Header',
+                                                    DefaultText='Ctrl'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <CheckBox IsChecked="{Binding Hotkey.Ctrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CheckBoxStyle}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Shift  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="30"
+                                        CanUserResize="False"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Shift.Header',
+                                                    DefaultText='Shift'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <CheckBox IsChecked="{Binding Hotkey.Shift, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CheckBoxStyle}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Windows  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="30"
+                                        CanUserResize="False"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Windows.Header',
+                                                    DefaultText='Win'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <CheckBox IsChecked="{Binding Hotkey.Win, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource CheckBoxStyle}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Action  -->
+                                    <DataGridTemplateColumn
+                                        Width="Auto"
+                                        MinWidth="24"
+                                        Header="{Tr 'VolumeControl.MainWindow.Hotkeys.HotkeyGrid.Action.Header',
+                                                    DefaultText='Action'}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <ComboBox
+                                                    IsEditable="False"
+                                                    ItemsSource="{Binding Actions, Source={StaticResource Settings}}"
+                                                    SelectedValue="{Binding ActionDefinition, UpdateSourceTrigger=PropertyChanged}"
+                                                    SelectedValuePath="HotkeyActionDefinition"
+                                                    Style="{StaticResource ComboBoxStyle}">
+                                                    <i:Interaction.Behaviors>
+                                                        <wpfBehaviors:DisableMouseWheelBehavior />
+                                                    </i:Interaction.Behaviors>
+                                                    <ComboBox.ItemContainerStyle>
+                                                        <Style TargetType="{x:Type ComboBoxItem}">
+                                                            <Setter Property="ToolTipService.ShowsToolTipOnKeyboardFocus" Value="True" />
+                                                            <Setter Property="ToolTipService.ToolTip" Value="{Binding DisplayDescription}" />
+                                                            <Setter Property="ToolTipService.Placement" Value="Left" />
+                                                            <Setter Property="ToolTipService.InitialShowDelay" Value="0" />
+                                                            <Setter Property="ToolTipService.BetweenShowDelay" Value="0" />
+                                                        </Style>
+                                                    </ComboBox.ItemContainerStyle>
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <!--  Don't put these Run blocks on different lines or it will add space between them!  -->
+                                                                <TextBlock FontWeight="SemiBold" Foreground="{Binding HotkeyActionDefinition.GroupBrush, TargetNullValue={StaticResource TextBoxForeground}}">
+                                                                    <TextBlock.Style>
+                                                                        <Style BasedOn="{StaticResource TextBlockStyle}" TargetType="{x:Type TextBlock}">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding DataContext.DisplayGroupName, RelativeSource={RelativeSource Self}}" Value="{x:Null}">
+                                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                    <Run Text="{Binding DisplayGroupName, Mode=OneWay}" /><Run Text=":" />
+                                                                </TextBlock>
+                                                                <TextBlock
+                                                                    Margin="2,0"
+                                                                    Style="{StaticResource TextBlockStyle}"
+                                                                    Text="{Binding DisplayName}" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                    <ComboBox.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <VirtualizingStackPanel />
+                                                        </ItemsPanelTemplate>
+                                                    </ComboBox.ItemsPanel>
+                                                </ComboBox>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Action Settings  -->
+                                    <DataGridTemplateColumn Width="Auto" CanUserResize="False">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <Button
+                                                    Width="{Binding Height, RelativeSource={RelativeSource Self}, UpdateSourceTrigger=PropertyChanged}"
+                                                    Click="Handle_HotkeyActionSettingsClick"
+                                                    CommandParameter="{Binding Hotkey.ID}"
+                                                    Content="🛠"
+                                                    IsEnabled="{Binding UsesActionSettings}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!--  Remove  -->
+                                    <DataGridTemplateColumn Width="Auto" CanUserResize="False">
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <Button
+                                                    Width="{Binding ActualHeight, RelativeSource={RelativeSource Self}}"
+                                                    Click="Handle_ResetHotkeysClick"
+                                                    Content="↺"
+                                                    ToolTip="{Tr 'VolumeControl.MainWindow.Hotkeys.ControlRow.ResetToDefault.Tooltip',
+                                                                 DefaultText='Resets all hotkeys to the default preset.'}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate DataType="{x:Type vm:HotkeyVM}">
+                                                <Button
+                                                    Name="hotkeyGridRemove"
+                                                    Width="{Binding Height, RelativeSource={RelativeSource Self}, UpdateSourceTrigger=PropertyChanged}"
+                                                    Click="Handle_hotkeyGridRemoveClick"
+                                                    CommandParameter="{Binding Hotkey.ID}"
+                                                    Content="❌"
+                                                    Foreground="{StaticResource CancelRed}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </DockPanel>
+                </TabItem>
+                <!--  ▲ Hotkeys Tab ▲  -->
+
+
+                <!--  ▼ Settings Tab ▼  -->
+                <TabItem Name="SettingsTab" Header="{Tr 'VolumeControl.MainWindow.Settings.TabHeader', DefaultText='Settings'}">
+                    <TabItem.Resources>
+                        <Style BasedOn="{StaticResource ExpanderStyle}" TargetType="{x:Type Expander}">
+                            <Setter Property="FlowDirection" Value="RightToLeft" />
+                            <Setter Property="Margin" Value="5,4" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                            <Setter Property="IsTabStop" Value="True" />
+                        </Style>
+                        <Style
+                            x:Key="ExpanderContentBorderStyle"
+                            BasedOn="{StaticResource RoundBorderMaskStyle}"
+                            TargetType="{x:Type Border}">
+                            <Setter Property="FlowDirection" Value="LeftToRight" />
+                            <Setter Property="Margin" Value="4" />
+                            <Setter Property="Background" Value="{StaticResource BorderBrush}" />
+                        </Style>
+                        <Style x:Key="ExpanderContentGridStyle" TargetType="{x:Type Grid}">
+                            <Setter Property="Margin" Value="5,4" />
+                        </Style>
+                    </TabItem.Resources>
+                    <!--  Settings Tab Layout  -->
+                    <Border BorderBrush="{StaticResource TabBackgroundBrush}" BorderThickness="2">
+                        <VirtualizingStackPanel FlowDirection="LeftToRight" Orientation="Vertical">
+                            <!--  ▼ Language ▼  -->
+                            <Border Style="{StaticResource SectionStyle}">
+                                <Grid x:Name="langGrid">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Label
+                                        HorizontalAlignment="Left"
+                                        Content="{Tr 'VolumeControl.MainWindow.Settings.Language.Header',
+                                                     DefaultText='Language'}"
+                                        FlowDirection="LeftToRight"
+                                        Style="{StaticResource HeaderLabelStyle}" />
+
+                                    <Grid Grid.Row="1" Margin="5,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox
+                                            Margin="5,3"
+                                            HorizontalAlignment="Stretch"
+                                            ItemsSource="{Binding AvailableLanguageNames, Mode=OneWay, Source={x:Static loc:Loc.Instance}}"
+                                            SelectedItem="{Binding CurrentLanguageName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Source={x:Static loc:Loc.Instance}}"
+                                            Style="{StaticResource ComboBoxStyle}" />
+
+                                        <Button
+                                            Grid.Column="1"
+                                            Padding="6,0"
+                                            Click="Handle_ReloadLanguageConfigs"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Language.Reload.Content',
+                                                         DefaultText='Reload'}"
+                                            Style="{StaticResource ButtonStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Language.Reload.Tooltip',
+                                                         DefaultText='Forcibly (re)create all of the default localization packages.'}" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <!--  ▲ Language ▲  -->
+
+                            <!--  ▼ Audio ▼  -->
+                            <Border Style="{StaticResource SectionStyle}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Canvas>
+                                        <Label Content="{Tr 'VolumeControl.MainWindow.Settings.Audio.Header', DefaultText='Audio'}" Style="{StaticResource HeaderLabelStyle}" />
+                                    </Canvas>
+
+                                    <!--  Additional Options Expander (Audio)  -->
+                                    <Expander Grid.Row="0">
+                                        <Expander.Header>
+                                            <TextBlock
+                                                FontWeight="ExtraLight"
+                                                Style="{StaticResource WatermarkTextBlockStyle}"
+                                                Text="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.Header.Content',
+                                                          DefaultText='Additional Settings'}"
+                                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.Header.Tooltip',
+                                                             DefaultText=' '}" />
+                                        </Expander.Header>
+
+                                        <Border Style="{StaticResource ExpanderContentBorderStyle}">
+                                            <Grid Style="{StaticResource ExpanderContentGridStyle}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition />
+                                                    <ColumnDefinition />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel
+                                                    MaxWidth="{Binding ActualWidth, ElementName=deviceGrid}"
+                                                    Margin="5,3"
+                                                    HorizontalAlignment="Stretch"
+                                                    Orientation="Vertical">
+                                                    <CheckBox
+                                                        VerticalAlignment="Center"
+                                                        Content="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.ShowPeakMeters.Content',
+                                                                     DefaultText='Show Peak Meters'}"
+                                                        IsChecked="{Binding ShowPeakMeters, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                                        Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.ShowPeakMeters.Tooltip',
+                                                                     DefaultText='Toggle the audio peaking meters shown in the Mixer.'}" />
+                                                    <Grid Margin="10,3">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock
+                                                            Margin="5,3"
+                                                            VerticalAlignment="Center"
+                                                            Style="{StaticResource TextBlockStyle}"
+                                                            Text="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.UpdateInterval.Content',
+                                                                      DefaultText='Update Interval'}"
+                                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.UpdateInterval.Tooltip',
+                                                                         DefaultText='The amount of time, in milliseconds, between each update of the peak meters in the Mixer.'}" />
+                                                        <controls:NumericUpDown
+                                                            Grid.Column="1"
+                                                            Margin="5,3"
+                                                            HorizontalAlignment="Stretch"
+                                                            VerticalAlignment="Center"
+                                                            MaxValue="120000"
+                                                            MinValue="50"
+                                                            Style="{StaticResource NumericUpDownStyle}"
+                                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.UpdateInterval.Tooltip',
+                                                                         DefaultText='The amount of time, in milliseconds, between each update of the peak meters in the Mixer.'}"
+                                                            Value="{Binding PeakMeterUpdateIntervalMs, Mode=TwoWay, Source={StaticResource Settings}}">
+                                                            <i:Interaction.Behaviors>
+                                                                <wpfBehaviors:MouseWheelNumericUpDownBehavior Amount="5" />
+                                                            </i:Interaction.Behaviors>
+                                                        </controls:NumericUpDown>
+                                                    </Grid>
+                                                    <CheckBox
+                                                        Content="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.EnableDeviceControl.Content',
+                                                                     DefaultText='Show Device Controls'}"
+                                                        IsChecked="{Binding EnableDeviceControl, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                                        Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.EnableDeviceControl.Tooltip',
+                                                                     DefaultText='Toggle the visibility of volume &amp; mute controls in the Audio Devices section.'}" />
+                                                </StackPanel>
+
+                                                <!--  Hidden Sessions  -->
+                                                <Grid Grid.Column="1" Margin="5,3">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition />
+                                                        <RowDefinition />
+                                                        <RowDefinition />
+                                                    </Grid.RowDefinitions>
+                                                    <Border
+                                                        Grid.RowSpan="3"
+                                                        Background="{StaticResource TextBoxBackground}"
+                                                        Style="{StaticResource RoundBorderMaskStyle}" />
+
+                                                    <TextBlock
+                                                        Margin="5,3,5,2"
+                                                        HorizontalAlignment="Center"
+                                                        FontWeight="SemiBold"
+                                                        Style="{StaticResource TextBlockStyle}"
+                                                        Text="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.HiddenSessions.Content',
+                                                                  DefaultText='Hidden Sessions'}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Audio.AdditionalSettings.HiddenSessions.Tooltip'}" />
+                                                    <ListBox
+                                                        x:Name="HiddenSessionProcessNamesListBox"
+                                                        Grid.Row="1"
+                                                        Margin="2,0"
+                                                        Background="#0000"
+                                                        BorderThickness="0"
+                                                        Foreground="{StaticResource TextBoxForeground}"
+                                                        IsTabStop="False"
+                                                        ItemsSource="{Binding HiddenSessionProcessNames, Source={StaticResource Settings}}">
+                                                        <ListBox.ItemContainerStyle>
+                                                            <Style TargetType="{x:Type ListBoxItem}">
+                                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                            </Style>
+                                                        </ListBox.ItemContainerStyle>
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type sys:String}">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition />
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <TextBlock
+                                                                        Margin="5,1"
+                                                                        Style="{StaticResource TextBlockStyle}"
+                                                                        Text="{Binding Path=.}" />
+                                                                    <Button
+                                                                        x:Name="HiddenSessionProcessNamesRemoveItemButton"
+                                                                        Grid.Column="1"
+                                                                        Width="{Binding Height, RelativeSource={RelativeSource Self}}"
+                                                                        Height="17"
+                                                                        Margin="3,1"
+                                                                        HorizontalAlignment="Right"
+                                                                        Click="HiddenSessionProcessNamesRemoveItemButton_Click"
+                                                                        Content="❌"
+                                                                        DataContext="{Binding RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}"
+                                                                        FontSize="9"
+                                                                        Style="{StaticResource RedButtonStyle}" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                    <controls:TextBoxWithCompletionOptions
+                                                        x:Name="HiddenSessionProcessNamesCompletionBox"
+                                                        Grid.Row="2"
+                                                        Margin="5,1,5,3"
+                                                        BackPressed="HiddenSessionProcessNamesCompletionBox_BackPressed"
+                                                        CommittedText="HiddenSessionProcessNamesCompletionBox_CommittedText"
+                                                        CompletionOptionsSource="{Binding AudioSessionProcessNameAutocompleteSource, Source={StaticResource Settings}}"
+                                                        Style="{StaticResource TextBoxWithCompletionOptionsStyle}"
+                                                        SuggestionClicked="HiddenSessionProcessNamesCompletionBox_SuggestionClicked" />
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </Expander>
+
+                                    <!--  Audio Devices DataGrid Row  -->
+                                    <Grid
+                                        Grid.Row="1"
+                                        Margin="9,3,9,5"
+                                        Style="{StaticResource SectionSubGridStyle}">
+                                        <Border
+                                            Name="DeviceGridMask"
+                                            Background="{StaticResource TextBoxBackground}"
+                                            CornerRadius="{StaticResource RoundedControlCorner}" />
+                                        <DataGrid
+                                            x:Name="deviceGrid"
+                                            Margin="0"
+                                            d:ItemsSource="{x:Null}"
+                                            AutoGenerateColumns="False"
+                                            CanUserAddRows="False"
+                                            CanUserDeleteRows="False"
+                                            CanUserReorderColumns="False"
+                                            CanUserResizeColumns="True"
+                                            CanUserResizeRows="False"
+                                            CanUserSortColumns="False"
+                                            DataContext="{StaticResource Settings}"
+                                            ItemsSource="{Binding AudioAPI.Devices, UpdateSourceTrigger=PropertyChanged}"
+                                            MinRowHeight="22"
+                                            Style="{StaticResource DataGridStyle}">
+                                            <DataGrid.OpacityMask>
+                                                <VisualBrush Visual="{Binding ElementName=DeviceGridMask}" />
+                                            </DataGrid.OpacityMask>
+                                            <DataGrid.RowStyle>
+                                                <Style TargetType="{x:Type DataGridRow}">
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding AudioDevice.DataFlow}" Value="Capture" />
+                                                                <Condition Binding="{Binding AlternationIndex, RelativeSource={RelativeSource Self}}" Value="0" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <MultiDataTrigger.Setters>
+                                                                <Setter Property="Background" Value="{StaticResource GridSecondaryRowBrush}" />
+                                                            </MultiDataTrigger.Setters>
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding AudioDevice.DataFlow}" Value="Capture" />
+                                                                <Condition Binding="{Binding AlternationIndex, RelativeSource={RelativeSource Self}}" Value="1" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <MultiDataTrigger.Setters>
+                                                                <Setter Property="Background" Value="{StaticResource GridSecondaryRowAltBrush}" />
+                                                            </MultiDataTrigger.Setters>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGrid.RowStyle>
+                                            <DataGrid.Columns>
+                                                <!--  Name  -->
+                                                <DataGridTemplateColumn Width="Auto" Header="{Tr 'VolumeControl.MainWindow.Settings.Audio.DeviceGrid.Name.Header', DefaultText='Device Name'}">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="5,1">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="20" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Image
+                                                                    Source="{Binding Icon, Mode=OneTime}"
+                                                                    Style="{StaticResource IconImageStyle}"
+                                                                    Visibility="{Binding ShowIcons, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                <TextBlock
+                                                                    Grid.Column="1"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="#0000"
+                                                                    Style="{StaticResource TextBlockStyle}"
+                                                                    Text="{Binding Name, Mode=OneWay}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <!--  Interface Name  -->
+                                                <DataGridTemplateColumn Width="Auto" Header="{Tr 'VolumeControl.MainWindow.Settings.Audio.DeviceGrid.Interface.Header', DefaultText='Interface Name'}">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock
+                                                                Margin="5,1"
+                                                                Foreground="LightGray"
+                                                                Style="{StaticResource TextBlockStyle}"
+                                                                Text="{Binding DeviceFriendlyName}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <!--  Mute  -->
+                                                <DataGridTemplateColumn
+                                                    Width="Auto"
+                                                    Header="{Tr 'VolumeControl.MainWindow.Settings.Audio.DeviceGrid.Mute.Header',
+                                                                DefaultText='Mute'}"
+                                                    Visibility="{Binding EnableDeviceControl, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox
+                                                                Margin="5,1"
+                                                                IsChecked="{Binding AudioDevice.Mute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                Style="{StaticResource CheckBoxStyle}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <!--  Volume  -->
+                                                <DataGridTemplateColumn
+                                                    MinWidth="170"
+                                                    Header="{Tr 'VolumeControl.MainWindow.Settings.Audio.DeviceGrid.Volume.Header',
+                                                                DefaultText='Volume'}"
+                                                    Visibility="{Binding EnableDeviceControl, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="5,1" VerticalAlignment="Center">
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto" />
+                                                                    <RowDefinition Height="Auto" />
+                                                                </Grid.RowDefinitions>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <!--  Slider  -->
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <!--  Divider  -->
+                                                                    <ColumnDefinition Width="2" />
+                                                                    <!--  TextBox  -->
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <!--  Slider  -->
+                                                                <Slider
+                                                                    x:Name="sessionVolumeSlider"
+                                                                    Grid.Column="0"
+                                                                    LargeChange="5"
+                                                                    Maximum="100"
+                                                                    Minimum="0"
+                                                                    SmallChange="1"
+                                                                    Tag="{Binding AudioDevice.PeakMeterValue, Mode=OneWay}"
+                                                                    Value="{Binding AudioDevice.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                                    <i:Interaction.Behaviors>
+                                                                        <wpfBehaviors:MouseWheelRangeBaseBehavior Amount="{Binding VolumeStepSize, Source={StaticResource Settings}}" />
+                                                                        <behaviour:IntervalUpdateBinding
+                                                                            EnableTimer="{Binding ShowPeakMeters, Source={StaticResource Settings}}"
+                                                                            Interval="{Binding PeakMeterUpdateIntervalMs, Source={StaticResource Settings}}"
+                                                                            Property="{x:Static FrameworkElement.TagProperty}" />
+                                                                    </i:Interaction.Behaviors>
+                                                                </Slider>
+                                                                <!--  TextBox  -->
+                                                                <TextBox
+                                                                    Grid.Column="2"
+                                                                    Width="30"
+                                                                    Background="#00000000"
+                                                                    BorderThickness="0"
+                                                                    FontStyle="Normal"
+                                                                    Style="{StaticResource TextBoxStyle}"
+                                                                    Text="{Binding AudioDevice.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <!--  ▲ Audio ▲  -->
+
+                            <!--  ▼ Notifications ▼  -->
+                            <Border Style="{StaticResource SectionStyle}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Canvas>
+                                        <Label Content="{Tr 'VolumeControl.MainWindow.Settings.Notifications.Header', DefaultText='Notifications'}" Style="{StaticResource HeaderLabelStyle}" />
+                                    </Canvas>
+
+                                    <!--  Additional Options Expander (Notifications)  -->
+                                    <Expander Grid.Row="1">
+                                        <Expander.Header>
+                                            <TextBlock
+                                                FontWeight="ExtraLight"
+                                                Style="{StaticResource WatermarkTextBlockStyle}"
+                                                Text="{Tr 'VolumeControl.MainWindow.Settings.Notifications.AdditionalSettings.Header.Content',
+                                                          DefaultText='Additional Settings'}"
+                                                ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.AdditionalSettings.Header.Tooltip',
+                                                             DefaultText=' '}" />
+                                        </Expander.Header>
+
+                                        <Border Style="{StaticResource ExpanderContentBorderStyle}">
+                                            <Grid Style="{StaticResource ExpanderContentGridStyle}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition />
+                                                    <ColumnDefinition />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition />
+                                                    <RowDefinition />
+                                                </Grid.RowDefinitions>
+
+                                                <!--  Row 0  -->
+                                                <CheckBox
+                                                    Margin="5,3"
+                                                    HorizontalAlignment="Left"
+                                                    Content="{Tr 'VolumeControl.ListNotification.Options.DragRequiresAlt.Content',
+                                                                 DefaultText='Drag Requires Alt'}"
+                                                    IsChecked="{Binding NotificationDragRequiresAlt, Source={StaticResource Settings}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                    Style="{StaticResource CheckBoxStyle}"
+                                                    ToolTip="{Tr 'VolumeControl.ListNotification.Options.DragRequiresAlt.Tooltip',
+                                                                 DefaultText='When checked, the ALT key must be held down in order to drag the notification window around with the mouse.'}" />
+                                                <CheckBox
+                                                    Grid.Column="1"
+                                                    Margin="5,3"
+                                                    HorizontalAlignment="Left"
+                                                    Content="{Tr 'VolumeControl.ListNotification.Options.SavePosition.Tooltip',
+                                                                 DefaultText='Save Position'}"
+                                                    IsChecked="{Binding NotificationSavesPosition, Source={StaticResource Settings}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                    Style="{StaticResource CheckBoxStyle}"
+                                                    ToolTip="{Tr 'VolumeControl.ListNotification.Options.SavePosition.Tooltip',
+                                                                 DefaultText=' '}" />
+
+                                                <!--  Row 1  -->
+                                                <Grid
+                                                    Grid.Row="2"
+                                                    Grid.ColumnSpan="4"
+                                                    HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Button
+                                                        Margin="5,3"
+                                                        Padding="6,0"
+                                                        Click="Handle_ResetNotificationPositionClick"
+                                                        Content="{Tr 'VolumeControl.MainWindow.Settings.Notifications.AdditionalSettings.ResetPosition.Content',
+                                                                     DefaultText='Reset Notification Position'}"
+                                                        Style="{StaticResource RedButtonStyle}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.AdditionalSettings.ResetPosition.Tooltip'}" />
+                                                    <Button
+                                                        Grid.Column="1"
+                                                        Margin="5,3"
+                                                        Padding="6,0"
+                                                        Click="Handle_ForceHideNotificationClick"
+                                                        Content="{Tr 'VolumeControl.MainWindow.Settings.Notifications.AdditionalSettings.ForceHide.Content',
+                                                                     DefaultText='Hide'}"
+                                                        Style="{StaticResource RedButtonStyle}"
+                                                        ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.AdditionalSettings.ForceHide.Tooltip',
+                                                                     DefaultText='Forces the notification window to disappear.'}" />
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </Expander>
+
+                                    <!--  Session/Device ListNotification Settings  -->
+                                    <UniformGrid
+                                        Grid.Row="2"
+                                        Margin="9,3,9,5"
+                                        Columns="2">
+                                        <Border
+                                            Margin="0,0,5,0"
+                                            Background="{StaticResource TabBackgroundBrush}"
+                                            CornerRadius="{StaticResource RoundedControlCorner}">
+                                            <StackPanel Orientation="Vertical">
+                                                <TextBlock
+                                                    Margin="5,5,5,3"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Style="{StaticResource TextBlockStyle}"
+                                                    Text="{Tr 'VolumeControl.MainWindow.Settings.Notifications.SessionListNotificationConfig.Header.Content',
+                                                              DefaultText='Session Notification Options'}"
+                                                    ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.SessionListNotificationConfig.Header.Tooltip',
+                                                                 DefaultText=' '}" />
+                                                <ContentControl
+                                                    Margin="5,3,5,5"
+                                                    Content="{Binding SessionConfigVM, Source={StaticResource Settings}}"
+                                                    ContentTemplate="{StaticResource NotificationConfigDataTemplate}"
+                                                    IsTabStop="False" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border
+                                            Margin="5,0,0,0"
+                                            Background="{StaticResource TabBackgroundBrush}"
+                                            CornerRadius="{StaticResource RoundedControlCorner}">
+                                            <StackPanel Orientation="Vertical">
+                                                <TextBlock
+                                                    Margin="5,5,5,3"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Style="{StaticResource TextBlockStyle}"
+                                                    Text="{Tr 'VolumeControl.MainWindow.Settings.Notifications.DeviceListNotificationConfig.Header.Content',
+                                                              DefaultText='Device Notification Options'}"
+                                                    ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Notifications.DeviceListNotificationConfig.Header.Tooltip',
+                                                                 DefaultText=' '}" />
+                                                <ContentControl
+                                                    Margin="5,3,5,5"
+                                                    Content="{Binding DeviceConfigVM, Source={StaticResource Settings}}"
+                                                    ContentTemplate="{StaticResource NotificationConfigDataTemplate}"
+                                                    IsTabStop="False" />
+                                            </StackPanel>
+                                        </Border>
+                                    </UniformGrid>
+                                </Grid>
+                            </Border>
+                            <!--  ▲ Notifications ▲  -->
+
+                            <!--  ▼ Log Settings ▼  -->
+                            <Border Style="{StaticResource SectionStyle}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Label Content="{Tr 'VolumeControl.MainWindow.Settings.Log.Header', DefaultText='Event Logging'}" Style="{StaticResource HeaderLabelStyle}" />
+                                    <Grid Grid.Row="1" Style="{StaticResource SectionSubGridStyle}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!--  Enable Log  -->
+                                        <CheckBox
+                                            x:Name="cbEnableLog"
+                                            Margin="3,0"
+                                            VerticalAlignment="Center"
+                                            d:IsEnabled="True"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Log.Enable.Content',
+                                                         DefaultText='Enable'}"
+                                            IsChecked="{Binding LogEnabled, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            IsEnabled="{Binding Text.IsEmpty, Mode=OneWay, ElementName=logPath, Converter={StaticResource InvertConverter}}"
+                                            Style="{StaticResource CheckBoxStyle}" />
+                                        <!--  Log Filter Level Setter  -->
+                                        <Grid
+                                            Grid.Column="1"
+                                            Margin="3,0"
+                                            IsEnabled="{Binding IsChecked, ElementName=cbEnableLog}">
+                                            <TextBlock
+                                                Margin="5,0,24,0"
+                                                Panel.ZIndex="1"
+                                                IsHitTestVisible="False"
+                                                Style="{StaticResource TextBlockStyle}"
+                                                Text="{Tr 'VolumeControl.MainWindow.Settings.Log.Filter.Text',
+                                                          DefaultText='Filter'}" />
+                                            <ComboBox
+                                                x:Name="logFilterBox"
+                                                Panel.ZIndex="0"
+                                                IsEditable="False"
+                                                IsEnabled="{b:MultiBinding {Binding Text.IsEmpty, Mode=OneWay, ElementName=logPath, Converter={StaticResource InvertConverter}},
+                                                                           {Binding IsChecked, ElementName=cbEnableLog},
+                                                                           Converter={StaticResource MultiBindingBooleanConverter}}"
+                                                ItemsSource="{Binding Items, Source={StaticResource LogFilterVM}}"
+                                                SelectionChanged="ComboBox_RemoveSelection"
+                                                Style="{StaticResource ComboBoxStyle}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox
+                                                            Content="{Binding Name}"
+                                                            IsChecked="{Binding IsSet, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                            Style="{StaticResource CheckBoxStyle}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </Grid>
+                                        <!--  Log Path Textbox  -->
+                                        <Border
+                                            Grid.Column="2"
+                                            Margin="3,0"
+                                            Background="{StaticResource TextBoxBackground}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RoundedControlCorner}"
+                                            IsEnabled="{Binding IsChecked, ElementName=cbEnableLog}">
+                                            <Border.Style>
+                                                <Style TargetType="{x:Type Border}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFocused, ElementName=logPath}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=logPath}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!--  LogPath Textbox (with width clamp to prevent it from expanding too much)  -->
+                                                <Border x:Name="WidthClamp" />
+                                                <TextBox
+                                                    x:Name="logPath"
+                                                    MaxWidth="{Binding ActualWidth, ElementName=WidthClamp}"
+                                                    Padding="5,8"
+                                                    VerticalAlignment="Stretch"
+                                                    Background="#0000"
+                                                    BorderThickness="0"
+                                                    HorizontalScrollBarVisibility="Auto"
+                                                    Text="{Binding LogFilePath, Mode=TwoWay, Source={StaticResource Settings}, UpdateSourceTrigger=LostFocus}"
+                                                    ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Log.Path.Tooltip',
+                                                                 DefaultText='Specifies the location and name of the log file. Relative paths are relative to the location of the executable.'}">
+                                                    <i:Interaction.Behaviors>
+                                                        <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                                                        <wpfBehaviors:TextBoxHorizontalScrollBehavior Magnitude="0.33" />
+                                                    </i:Interaction.Behaviors>
+                                                    <TextBox.Style>
+                                                        <Style BasedOn="{StaticResource TextBoxStyle}" TargetType="{x:Type TextBox}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding LogFilePath, Source={StaticResource Settings}, Mode=OneWay}" Value="">
+                                                                    <Setter Property="Background" Value="#3F3030" />
+                                                                </DataTrigger>
+                                                                <Trigger Property="IsFocused" Value="True">
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBox.Style>
+                                                </TextBox>
+                                                <TextBlock
+                                                    Width="{Binding Width, ElementName=logPath}"
+                                                    Height="{Binding Height, ElementName=logPath}"
+                                                    Margin="5,0"
+                                                    d:Visibility="Collapsed"
+                                                    Style="{StaticResource WatermarkTextBlockStyle}"
+                                                    Text="{Tr 'VolumeControl.MainWindow.Settings.Log.Path.WatermarkText',
+                                                              DefaultText='Path to Log File'}"
+                                                    Visibility="{Binding Text.IsEmpty, Mode=OneWay, ElementName=logPath, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                <!--  LogPath Browse Button  -->
+                                                <Button
+                                                    Grid.Column="1"
+                                                    Margin="5,2"
+                                                    Padding="3,0"
+                                                    VerticalAlignment="Stretch"
+                                                    Click="Handle_BrowseForLogFilePathClick"
+                                                    Content="🗁"
+                                                    FontWeight="SemiBold"
+                                                    IsEnabled="{Binding IsChecked, ElementName=cbEnableLog}" />
+                                                <!--  Open Log File Button  -->
+                                                <Button
+                                                    Grid.Column="2"
+                                                    Margin="5,2"
+                                                    Padding="3,0"
+                                                    VerticalAlignment="Stretch"
+                                                    Click="Handle_OpenLogClick"
+                                                    Content="{Tr 'VolumeControl.MainWindow.Settings.Log.OpenButton.Content',
+                                                                 DefaultText='Open'}"
+                                                    IsEnabled="{Binding IsChecked, ElementName=cbEnableLog}"
+                                                    ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Log.OpenButton.Tooltip',
+                                                                 DefaultText='Opens the log file in the default application.'}" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <!--  ▲ Log Settings ▲  -->
+
+                            <!--  ▼ Application Settings ▼  -->
+                            <Border Style="{StaticResource SectionStyle}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Label Content="{Tr 'VolumeControl.MainWindow.Settings.Application.Header', DefaultText='Application'}" Style="{StaticResource HeaderLabelStyle}" />
+
+                                    <Grid
+                                        Grid.Row="1"
+                                        Margin="5,3"
+                                        Style="{StaticResource SectionSubGridStyle}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition />
+                                            <ColumnDefinition />
+                                            <ColumnDefinition />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition />
+                                            <RowDefinition />
+                                            <RowDefinition />
+                                        </Grid.RowDefinitions>
+                                        <!--  Row 0-2 ; Column 0  -->
+                                        <CheckBox
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.RunAtStartup.Content',
+                                                         DefaultText='Run at Startup'}"
+                                            IsChecked="{Binding RunAtStartup, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            IsThreeState="True">
+                                            <!--  Change ToolTip based on IsChecked  -->
+                                            <CheckBox.Style>
+                                                <Style BasedOn="{StaticResource ApplicationSettingsCheckboxStyle}" TargetType="{x:Type CheckBox}">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsChecked" Value="{x:Null}">
+                                                            <Setter Property="ToolTip" Value="{Tr 'VolumeControl.MainWindow.Settings.Application.RunAtStartup.AltTooltip', DefaultText='Another Volume Control instance is set to run at startup. Changing this will replace it.'}" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                    <Setter Property="ToolTip" Value="{Tr 'VolumeControl.MainWindow.Settings.Application.RunAtStartup.Tooltip', DefaultText='When enabled, Volume Control will start when you log in.'}" />
+                                                </Style>
+                                            </CheckBox.Style>
+                                        </CheckBox>
+                                        <CheckBox
+                                            Grid.Row="1"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.StartMinimized.Content',
+                                                         DefaultText='Start Minimized'}"
+                                            IsChecked="{Binding StartMinimized, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.StartMinimized.Tooltip',
+                                                         DefaultText='When enabled, Volume Control will minimize itself when it starts up.'}" />
+                                        <CheckBox
+                                            Grid.Row="2"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.KeepRelativePosition.Content',
+                                                         DefaultText='Keep Relative Position'}"
+                                            IsChecked="{Binding KeepRelativePosition, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.KeepRelativePosition.Tooltip',
+                                                         DefaultText='Keeps the main window in the same position relative to the nearest screen corner when its size changes.'}" />
+
+                                        <!--  Row 0-2 ; Column 1  -->
+                                        <CheckBox
+                                            Grid.Column="1"
+                                            Checked="MultiInstanceCheckbox_CheckStateChanged"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.MultiInstance.Content',
+                                                         DefaultText='Multi-Instance'}"
+                                            IsChecked="{Binding AllowMultipleDistinctInstances, Source={StaticResource Settings}}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.MultiInstance.Tooltip',
+                                                         DefaultText='Allows multiple Volume Control instances to run at the same time, so long as they use a different config file.'}"
+                                            Unchecked="MultiInstanceCheckbox_CheckStateChanged" />
+                                        <CheckBox
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.ShowIcons.Content',
+                                                         DefaultText='Show Icons'}"
+                                            IsChecked="{Binding ShowIcons, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.ShowIcons.Tooltip',
+                                                         DefaultText='When enabled, the program will attempt to display the icon associated with audio devices and sessions. ( Some icons may be missing when running as user. )'}" />
+                                        <CheckBox
+                                            Grid.Row="2"
+                                            Grid.Column="1"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.RestorePosition.Content',
+                                                         DefaultText='Restore Position'}"
+                                            IsChecked="{Binding RestoreMainWindowPosition, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.RestorePosition.Tooltip',
+                                                         DefaultText='Restores the previous position of the main window when you start the program.'}" />
+
+                                        <!--  Row 0-1 ; Column 2  -->
+                                        <CheckBox
+                                            Grid.Column="2"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.ShowInTaskbar.Content',
+                                                         DefaultText='Show in Taskbar'}"
+                                            IsChecked="{b:MultiBinding {Binding ShowInTaskbar, ElementName=window, UpdateSourceTrigger=PropertyChanged},
+                                                                       {Binding ShowInTaskbar, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged},
+                                                                       Converter={StaticResource MultiBindingBooleanConverter},
+                                                                       UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.ShowInTaskbar.Tooltip',
+                                                         DefaultText=' '}" />
+                                        <CheckBox
+                                            Grid.Row="1"
+                                            Grid.Column="2"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.AlwaysOnTop.Content',
+                                                         DefaultText='Always on Top'}"
+                                            IsChecked="{b:MultiBinding {Binding Topmost, ElementName=window, UpdateSourceTrigger=PropertyChanged},
+                                                                       {Binding AlwaysOnTop, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged},
+                                                                       Converter={StaticResource MultiBindingBooleanConverter},
+                                                                       UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.AlwaysOnTop.Tooltip',
+                                                         DefaultText=' '}" />
+                                        <CheckBox
+                                            Grid.Row="2"
+                                            Grid.Column="2"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Application.EnableInputDevices.Content',
+                                                         DefaultText='Audio Input Support'}"
+                                            IsChecked="{Binding AudioAPI.EnableInputDeviceSupport, Source={StaticResource Settings}}"
+                                            Style="{StaticResource ApplicationSettingsCheckboxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Application.EnableInputDevices.Tooltip',
+                                                         DefaultText='Enables support for capture devices &amp; sessions that record audio.'}" />
+
+                                    </Grid>
+                                </Grid>
+                                <!--  ▼ Application Settings ▼  -->
+                            </Border>
+                            <!--  ▲ Application Settings ▲  -->
+
+                            <!--  ▼ Updates ▼  -->
+                            <Border Style="{StaticResource SectionStyle}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Label Content="{Tr 'VolumeControl.MainWindow.Settings.Updates.Header', DefaultText='Updates'}" Style="{StaticResource HeaderLabelStyle}" />
+
+                                    <Grid
+                                        Grid.Row="1"
+                                        Margin="5,3"
+                                        HorizontalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Button
+                                            Grid.Column="0"
+                                            Margin="8,0"
+                                            Padding="6,0"
+                                            Click="Handle_CheckForUpdatesClick"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Updates.CheckNow.Content',
+                                                         DefaultText='Check Now'}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Updates.CheckNow.Tooltip',
+                                                         DefaultText='Manually check for new versions of Volume Control.'}" />
+                                        <CheckBox
+                                            x:Name="cbCheckForUpdatesOnStartup"
+                                            Grid.Column="1"
+                                            Margin="8,0"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Updates.OnStartup.Content',
+                                                         DefaultText='On Startup'}"
+                                            IsChecked="{Binding CheckForUpdates, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                                            Style="{StaticResource CheckBoxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Updates.OnStartup.Tooltip',
+                                                         DefaultText='Check for new versions of Volume Control on startup.'}" />
+                                        <CheckBox
+                                            Grid.Column="2"
+                                            Margin="8,0"
+                                            Content="{Tr 'VolumeControl.MainWindow.Settings.Updates.ShowPrompt.Content',
+                                                         DefaultText='Show Prompt'}"
+                                            IsChecked="{Binding ShowUpdateMessageBox, Source={StaticResource Settings}}"
+                                            Style="{StaticResource CheckBoxStyle}"
+                                            ToolTip="{Tr 'VolumeControl.MainWindow.Settings.Updates.ShowPrompt.Tooltip',
+                                                         DefaultText='When this is checked, you[apos]ll be prompted to update in the form of a message box; otherwise, you[apos]ll see an icon in the top-right corner.'}" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <!--  ▲ Updates ▲  -->
+                        </VirtualizingStackPanel>
+                    </Border>
+                </TabItem>
+                <!--  ▲ Settings Tab ▲  -->
+            </ctrlz:TabControlEx>
+        </VirtualizingStackPanel>
+    </Border>
+
+    <!--  ( Window Chrome )  -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome
+            CaptionHeight="{StaticResource CaptionHeight}"
+            CornerRadius="{StaticResource RoundedWindowCorner}"
+            GlassFrameThickness="0"
+            ResizeBorderThickness="{x:Static SystemParameters.WindowResizeBorderThickness}" />
+    </WindowChrome.WindowChrome>
+</Window>

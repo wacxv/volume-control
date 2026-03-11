@@ -1,0 +1,433 @@
+﻿<Window
+    x:Class="VolumeControl.SessionListNotification"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:behaviour="clr-namespace:XamlTimers;assembly=XamlTimers"
+    xmlns:conv="clr-namespace:VolumeControl.WPF.Converters;assembly=VolumeControl.WPF"
+    xmlns:core="clr-namespace:VolumeControl.Core;assembly=VolumeControl.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:VolumeControl.ViewModels"
+    xmlns:wpf="clr-namespace:VolumeControl.WPF;assembly=VolumeControl.WPF"
+    xmlns:wpfBehaviors="clr-namespace:VolumeControl.WPF.Behaviors;assembly=VolumeControl.WPF"
+    x:Name="Window"
+    Title="SessionListNotification"
+    AllowsTransparency="True"
+    Background="Transparent"
+    Closing="Window_Closing"
+    DataContext="{Binding RelativeSource={RelativeSource Self}}"
+    FontFamily="{StaticResource InterFont}"
+    Loaded="Window_Loaded"
+    MouseDown="Window_MouseDown"
+    MouseEnter="Window_MouseEnter"
+    MouseLeave="Window_MouseLeave"
+    ResizeMode="NoResize"
+    ShowActivated="False"
+    ShowInTaskbar="False"
+    SizeToContent="WidthAndHeight"
+    Topmost="True"
+    WindowStartupLocation="Manual"
+    WindowStyle="None"
+    mc:Ignorable="d">
+    <Window.Resources>
+        <ResourceDictionary>
+            <!--  Converters  -->
+            <conv:ConverterChain x:Key="NullableToVisibilityConverter">
+                <conv:NullToBooleanConverter />
+                <conv:BooleanInverter />
+                <BooleanToVisibilityConverter />
+            </conv:ConverterChain>
+            <conv:BooleanInverter x:Key="InvertConverter" />
+            <conv:ConverterChain x:Key="InvertedBooleanToVisibilityConverter">
+                <conv:BooleanInverter />
+                <BooleanToVisibilityConverter />
+            </conv:ConverterChain>
+
+            <!--  Styles  -->
+            <Style BasedOn="{StaticResource TextBoxStyle}" TargetType="{x:Type TextBox}">
+                <Setter Property="Background" Value="#0000" />
+                <Setter Property="BorderThickness" Value="0" />
+            </Style>
+
+            <!--  Animation Storyboards  -->
+            <Storyboard x:Key="FadeInStoryboard" Completed="FadeInStoryboard_Completed">
+                <DoubleAnimation
+                    FillBehavior="HoldEnd"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0.0"
+                    To="1.0"
+                    Duration="{Binding SessionConfigVM.ConfigSection.FadeInDuration, Source={StaticResource Settings}}" />
+            </Storyboard>
+            <Storyboard x:Key="FadeOutStoryboard" Completed="FadeOutStoryboard_Completed">
+                <DoubleAnimation
+                    FillBehavior="Stop"
+                    Storyboard.TargetProperty="Opacity"
+                    From="1.0"
+                    To="0.0"
+                    Duration="{Binding SessionConfigVM.ConfigSection.FadeOutDuration, Source={StaticResource Settings}}" />
+            </Storyboard>
+
+            <!--  DataTemplates  -->
+            <DataTemplate x:Key="SessionControlsDataTemplate" DataType="{x:Type vm:AudioSessionVM}">
+                <!--  ControlBar template  -->
+                <Grid Margin="2,4,2,2" DataContext="{Binding AudioSession}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition MinWidth="80" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox
+                        Grid.Column="0"
+                        Margin="0,0,3,0"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding Mute, UpdateSourceTrigger=PropertyChanged}" />
+                    <Slider
+                        Grid.Column="1"
+                        Margin="2,0"
+                        VerticalAlignment="Center"
+                        LargeChange="5"
+                        Maximum="100"
+                        Minimum="0"
+                        SmallChange="1"
+                        Tag="{Binding PeakMeterValue, Mode=OneWay}"
+                        Value="{Binding Volume, UpdateSourceTrigger=PropertyChanged}">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:MouseWheelRangeBaseBehavior Amount="{Binding VolumeStepSize, Source={StaticResource Settings}}" />
+                            <behaviour:IntervalUpdateBinding
+                                EnableTimer="{Binding ShowPeakMeters, Source={StaticResource Settings}}"
+                                Interval="{Binding PeakMeterUpdateIntervalMs, Source={StaticResource Settings}}"
+                                ThrowWhenPropertyIsMissing="False"
+                                Property="{x:Static FrameworkElement.TagProperty}" />
+                        </i:Interaction.Behaviors>
+                    </Slider>
+                    <TextBox
+                        Grid.Column="2"
+                        MinWidth="34"
+                        Margin="3,0,0,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Foreground="{Binding SessionConfigVM.ForegroundBrush, Source={StaticResource Settings}}"
+                        Text="{Binding Volume, UpdateSourceTrigger=LostFocus}"
+                        TextAlignment="Right">
+                        <i:Interaction.Behaviors>
+                            <wpfBehaviors:EscapeRemovesFocusBehavior FocusOnParentWindow="False" />
+                            <wpfBehaviors:TextBoxEnterUpdatesTextSourceBehavior />
+                        </i:Interaction.Behaviors>
+                    </TextBox>
+                </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="SessionDisplayDataTemplate" DataType="{x:Type vm:AudioSessionVM}">
+                <!--  Display template without auto-sizing  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="{Binding Height, RelativeSource={RelativeSource Self}, Mode=OneWay}"
+                        Height="20"
+                        Margin="0,0,5,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Source="{Binding Icon}"
+                        Visibility="{Binding ShowIcons, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock
+                        x:Name="sessionProcessNameBox"
+                        Grid.Column="1"
+                        Margin="5,0,0,0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{Binding SessionConfigVM.ForegroundBrush, Source={StaticResource Settings}}"
+                        Text="{Binding Name}">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AudioSession.DataFlow}" Value="Capture">
+                                        <Setter Property="FontStyle" Value="Oblique" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="SessionDisplayAlwaysBoldWidthDataTemplate" DataType="{x:Type vm:AudioSessionVM}">
+                <!--  Display template that always keeps enough width to display bold text without resizing  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Image
+                        Width="{Binding Height, RelativeSource={RelativeSource Self}, Mode=OneWay}"
+                        Height="20"
+                        Margin="0,0,5,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Source="{Binding Icon}"
+                        Visibility="{Binding ShowIcons, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock
+                        x:Name="sessionProcessNameBox"
+                        Grid.Column="1"
+                        Margin="5,0,0,0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{Binding SessionConfigVM.ForegroundBrush, Source={StaticResource Settings}}"
+                        Text="{Binding Name}">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding AudioSession.DataFlow}" Value="Capture">
+                                        <Setter Property="FontStyle" Value="Oblique" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <!--  Always Bold TextBlock (Keeps correct width)  -->
+                    <TextBlock
+                        Grid.Column="1"
+                        Margin="{Binding Margin}"
+                        DataContext="{Binding ElementName=sessionProcessNameBox}"
+                        FontSize="{Binding FontSize}"
+                        FontWeight="Bold"
+                        Text="{Binding Text}"
+                        Visibility="Hidden" />
+                </Grid>
+            </DataTemplate>
+            <DataTemplate x:Key="SessionFullDataTemplate" DataType="{x:Type vm:AudioSessionVM}">
+                <!--  Combines the display data template with the controls data template  -->
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ContentControl
+                        Margin="3,1"
+                        Content="{Binding}"
+                        ContentTemplate="{StaticResource SessionDisplayDataTemplate}" />
+
+                    <ContentControl
+                        Grid.Row="1"
+                        Margin="3,1"
+                        Content="{Binding}"
+                        ContentTemplate="{StaticResource SessionControlsDataTemplate}" />
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border
+        Padding="9"
+        Background="{Binding SessionConfigVM.BackgroundBrush, Source={StaticResource Settings}}"
+        BorderThickness="7"
+        CornerRadius="{Binding SessionConfigVM.ConfigSection.CornerRadius, Source={StaticResource Settings}}">
+        <Border.Style>
+            <Style TargetType="{x:Type Border}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding AudioAPI.AudioSessionMultiSelector.LockSelection, Source={StaticResource Settings}}" Value="True">
+                        <Setter Property="BorderBrush" Value="{Binding SessionConfigVM.LockedAccentBrush, Source={StaticResource Settings}}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding AudioAPI.AudioSessionMultiSelector.LockSelection, Source={StaticResource Settings}}" Value="False">
+                        <Setter Property="BorderBrush" Value="{Binding SessionConfigVM.UnlockedAccentBrush, Source={StaticResource Settings}}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Row 0 (ListView)  -->
+            <ListView
+                x:Name="ListView"
+                Margin="6,6,6,8"
+                Padding="1"
+                Background="#0000"
+                ItemTemplate="{StaticResource SessionDisplayAlwaysBoldWidthDataTemplate}"
+                ItemsSource="{Binding AudioAPI.AllSessions, Source={StaticResource Settings}, Mode=OneWay}"
+                PreviewMouseDown="ListView_PreviewMouseDown"
+                SelectedIndex="{Binding AudioAPI.AudioSessionMultiSelector.CurrentIndex, Source={StaticResource Settings}, UpdateSourceTrigger=PropertyChanged}"
+                SelectionMode="Single">
+                <i:Interaction.Behaviors>
+                    <wpfBehaviors:MouseWheelListViewBehavior />
+                </i:Interaction.Behaviors>
+                <ListView.Style>
+                    <Style TargetType="{x:Type ListView}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowFullList, Source={StaticResource Settings}}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Background" Value="#0000" />
+                        <Setter Property="FocusVisualStyle" Value="{StaticResource CustomFocusVisualStyle}" />
+                    </Style>
+                </ListView.Style>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="{x:Type ListViewItem}">
+                        <Style.Triggers>
+                            <!--  Selector (Multi-Selection Mode Only):  -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.HasSelectedSessions, Source={StaticResource Settings}}" Value="True" />
+                                    <!--  Binds to ListViewItem.IsSelected:  -->
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="BorderBrush" Value="{StaticResource TextBoxForeground}" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+                            <!--  Selector (Single-Selection Mode Only):  -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.HasSelectedSessions, Source={StaticResource Settings}}" Value="False" />
+                                    <!--  Binds to ListViewItem.IsSelected:  -->
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.LockSelection, Source={StaticResource Settings}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="Background" Value="{Binding SessionConfigVM.LockedAccentBrush, Source={StaticResource Settings}}" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.HasSelectedSessions, Source={StaticResource Settings}}" Value="False" />
+                                    <!--  Binds to ListViewItem.IsSelected:  -->
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.LockSelection, Source={StaticResource Settings}}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="Background" Value="{Binding SessionConfigVM.UnlockedAccentBrush, Source={StaticResource Settings}}" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+
+                            <!--  Binds to AudioSessionVM.IsSelected:  -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.LockSelection, Source={StaticResource Settings}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="Background" Value="{Binding SessionConfigVM.LockedAccentBrush, Source={StaticResource Settings}}" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected}" Value="True" />
+                                    <Condition Binding="{Binding AudioAPI.AudioSessionMultiSelector.LockSelection, Source={StaticResource Settings}}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters>
+                                    <Setter Property="Background" Value="{Binding SessionConfigVM.UnlockedAccentBrush, Source={StaticResource Settings}}" />
+                                </MultiDataTrigger.Setters>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                        <Setter Property="BorderThickness" Value="1.5" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                        <Setter Property="Margin" Value="0,1" />
+                        <Setter Property="Padding" Value="6,4" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ListViewItem}">
+                                    <Border
+                                        Margin="{TemplateBinding Margin}"
+                                        Padding="{TemplateBinding Padding}"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="{StaticResource RoundedControlCorner}"
+                                        FocusVisualStyle="{TemplateBinding FocusVisualStyle}">
+                                        <ContentPresenter
+                                            Content="{TemplateBinding Content}"
+                                            ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <EventSetter Event="Selected" Handler="ListViewItem_Selected" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
+
+            <!--  Row 1 (Controls)  -->
+            <Grid Grid.Row="1">
+                <Grid.Style>
+                    <Style TargetType="{x:Type Grid}">
+                        <Style.Triggers>
+                            <!--  Hide controls when viewmode doesn't include them  -->
+                            <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowControlBar, Source={StaticResource Settings}}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowSelectedOnly, Source={StaticResource Settings}}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <ItemsControl
+                    x:Name="MultiSelectionControls"
+                    Margin="2"
+                    ItemsSource="{Binding AudioAPI.SelectedSessions, Source={StaticResource Settings}}"
+                    Visibility="{Binding AudioAPI.AudioSessionMultiSelector.HasSelectedSessions, Source={StaticResource Settings}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ItemsControl.Style>
+                        <Style TargetType="{x:Type ItemsControl}">
+                            <Style.Triggers>
+                                <!--  Use display/control hybrid template when only selected sessions are visible  -->
+                                <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowSelectedOnly, Source={StaticResource Settings}}" Value="True">
+                                    <Setter Property="ItemTemplate" Value="{StaticResource SessionFullDataTemplate}" />
+                                </DataTrigger>
+                                <!--  Override last and use display template when control bar isn't visible  -->
+                                <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowControlBar, Source={StaticResource Settings}}" Value="False">
+                                    <Setter Property="ItemTemplate" Value="{StaticResource SessionDisplayDataTemplate}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                            <Setter Property="ItemTemplate" Value="{StaticResource SessionControlsDataTemplate}" />
+                        </Style>
+                    </ItemsControl.Style>
+                </ItemsControl>
+                <Grid Visibility="{Binding IsVisible, ElementName=MultiSelectionControls, Converter={StaticResource InvertedBooleanToVisibilityConverter}}">
+                    <ContentControl
+                        Margin="2"
+                        Content="{Binding AudioAPI.CurrentSession, Source={StaticResource Settings}}"
+                        Visibility="{Binding AudioAPI.AudioSessionMultiSelector.CurrentSession, Source={StaticResource Settings}, Mode=OneWay, Converter={StaticResource NullableToVisibilityConverter}}">
+                        <ContentControl.Style>
+                            <Style TargetType="{x:Type ContentControl}">
+                                <Style.Triggers>
+                                    <!--  Use display/control hybrid template when only selected sessions are visible  -->
+                                    <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowSelectedOnly, Source={StaticResource Settings}}" Value="True">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource SessionFullDataTemplate}" />
+                                    </DataTrigger>
+                                    <!--  Override last and use display template when control bar isn't visible  -->
+                                    <DataTrigger Binding="{Binding SessionConfigVM.FlagsVM.ShowControlBar, Source={StaticResource Settings}}" Value="False">
+                                        <Setter Property="ContentTemplate" Value="{StaticResource SessionDisplayDataTemplate}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                                <Setter Property="ContentTemplate" Value="{StaticResource SessionControlsDataTemplate}" />
+                            </Style>
+                        </ContentControl.Style>
+                    </ContentControl>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" />
+    </WindowChrome.WindowChrome>
+</Window>

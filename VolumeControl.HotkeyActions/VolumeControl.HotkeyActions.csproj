@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Configurations>Debug;Release</Configurations>
+    <Authors>radj307</Authors>
+    <Version>6.6.3</Version>
+    <FileVersion>6.6.3</FileVersion>
+    <Copyright>Copyright © 2022-2023 by $(Authors)</Copyright>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Configuration)'=='Debug'">
+    <EmbeddedResource Include="Localization\zz-HotkeyActions.loc.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Localization\en-HotkeyActions.loc.json" />
+    <None Remove="Localization\it-HotkeyActions.loc.json" />
+    <None Remove="Localization\zz-HotkeyActions.loc.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\it-HotkeyActions.loc.json" />
+    <EmbeddedResource Include="Localization\en-HotkeyActions.loc.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VolumeControl.CoreAudio\VolumeControl.CoreAudio.csproj" />
+    <ProjectReference Include="..\VolumeControl.Core\VolumeControl.Core.csproj" />
+    <ProjectReference Include="..\VolumeControl.SDK\VolumeControl.SDK.csproj" />
+  </ItemGroup>
+</Project>

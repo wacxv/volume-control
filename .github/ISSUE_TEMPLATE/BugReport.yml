@@ -1,0 +1,108 @@
+name: Bug Report
+description: File a bug report
+title: "[BUG] "
+labels: [ bug, triage ]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value:  |
+              ### :warning:    🠕 Don't forget to set a descriptive title for your issue! 🠕
+              
+              Thank you for taking the time to fill out a bug report, your feedback helps us to improve your experience with our product!  
+              
+              The more fields you can fill out, the better our understanding of the problem and its underlying causes.  
+              If you feel a section doesn't apply, or is already obvious from previous fields, skip them.  
+              
+  - type: input
+    id: version
+    attributes:
+      label:        Version Number
+      description:  |
+                    The version of volume control that you're having trouble with. If you've tried multiple versions, separate them with commas (`,`).  
+                    This tells us what version of the program we need to fix, and can be found to the left of the minimize & close buttons on the top bar.  
+                    
+                    If the program won't start, find `VolumeControl.exe` & *Right-Click* → **Properties** → **Details** → **`Product version`**
+                    
+      placeholder: x.x.x
+    validations:
+      required:     true
+
+  - type: dropdown
+    id: file
+    attributes:
+      label:       File
+      description: |
+                   Select whether you used the installer version or the portable version.  
+                   If you're having the issue with multiple files, select all that apply.
+
+                   Winget users should select **Installer**.
+      options:
+        - Installer  (VolumeControl-Installer.exe)
+        - Portable   (VolumeControl.exe)
+      multiple:    true
+    validations:
+      required:    true
+
+  - type: input
+    id: winver
+    attributes:
+      label:        Windows Version
+      description:  |
+                    We need to know what version of Windows you're using to diagnose the problem.  
+
+                    To find this out, press **Win**+**R** to open the run dialog, then type `"winver"` and press **Enter** to open *About Windows*.  
+                    ![](https://github.com/radj307/volume-control/assets/1927798/e6ec5b78-2260-4d6c-a26c-8d6ef4c102b3)  
+                    *(Including the OS Build is optional)*
+      placeholder:  Windows 10 Enterprise N LTSC Version 21H2
+    validations:
+      required:     true
+
+  - type: textarea
+    id:   actual
+    attributes:
+      label:        Actual Behaviour
+      description:  |
+                    This tells us what happened, which helps us build a description of the bug we need to fix.  
+                    Be specific, and include as much detail as possible.
+      placeholder:  The program does *this*
+    validations:
+      required:     true
+
+  - type: textarea
+    id:   expected
+    attributes:
+      label:        Expected Behaviour
+      description:  |
+                    [Optional]
+                    This gives us an idea of what we should do to fix the problem, and/or provides you with a way to suggest what you want to happen.  
+                    *(That doesn't mean we **will** (or can) fix it in the exact way that you want, but it does shape the way that we approach the problem.)*
+      placeholder:  I expected the program to do *that*
+
+  - type: textarea
+    id:   repro
+    attributes:
+      label:        Reproduction Steps
+      description:  |
+                    [Optional]
+                    This helps us replicate the conditions that led to the bug you experienced, so that we can observe the cause in a debugging environment.  
+                    Include all necessary details; if we're unable to reproduce the issue, we can't fix it!
+      placeholder:  |
+                    1. While sitting in an office chair, begin spinning clockwise as fast as you can until you've fully rotated a total of 99 times.
+                    2. Launch the program within a few seconds.
+                    3. Observe lack of ability to correctly use the program due to [inner ear error].
+
+  - type: textarea
+    id:   log
+    attributes:
+      label:        Log
+      description:  |
+                    [Recommended]
+                    This tells us what the program was doing when the problem occurred.  
+                    
+                    `VolumeControl.log` can be found in one of the following locations:  
+                    - (Installer) `%LocalAppData%\radj307\VolumeControl`  
+                    - (Portable)  The folder where `VolumeControl.exe` is located.  
+      render:       shell
+      placeholder:  |
+                    Logs may contain file paths that include your Windows username. If you don't want your username to be visible publicly, use a text editor to replace all occurrences with <USERNAME> prior to posting.
